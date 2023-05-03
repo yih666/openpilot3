@@ -79,7 +79,7 @@ def manager_init() -> None:
     ("ApplyDynamicTFollow", "110"),
     ("ApplyDynamicTFollowApart", "95"),
     ("ApplyDynamicTFollowDecel", "110"),
-    ("StoppingDecelRate", "30"),
+    ("StoppingDecelRate", "5"),
     ("SccStoppingCost", "25"),
     ("SccStartingCost", "25"),
     ("Steer_SRTune", "0"),
