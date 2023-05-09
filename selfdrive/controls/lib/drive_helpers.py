@@ -16,6 +16,7 @@ V_CRUISE_DELTA_MI = 5 * CV.MPH_TO_KPH
 V_CRUISE_DELTA_KM = 10
 V_CRUISE_ENABLE_MIN = 30
 
+MIN_SPEED = 1.0
 LAT_MPC_N = 16
 LON_MPC_N = 32
 CONTROL_N = 17
@@ -100,12 +101,15 @@ def initialize_v_cruise(v_ego, buttonEvents, v_cruise_last):
   return int(round(clip(v_ego * CV.MS_TO_KPH, V_CRUISE_ENABLE_MIN, V_CRUISE_MAX)))
 
 
-def get_lag_adjusted_curvature(CP, v_ego, psis, curvatures, curvature_rates):
+def get_lag_adjusted_curvature(CP, v_ego, psis, curvatures, curvature_rates, velocities):
   if len(psis) != CONTROL_N:
     psis = [0.0]*CONTROL_N
     curvatures = [0.0]*CONTROL_N
     curvature_rates = [0.0]*CONTROL_N
-  v_ego = max(v_ego, 0.1)
+    velocities = [0.0]*CONTROL_N
+  if len(velocities) != CONTROL_N:
+    velocities = [0.0]*CONTROL_N
+  v_ego = max(MIN_SPEED, v_ego)
 
   # TODO this needs more thought, use .2s extra for now to estimate other delays
   delay = ntune_common_get('steerActuatorDelay') + .2
@@ -114,7 +118,9 @@ def get_lag_adjusted_curvature(CP, v_ego, psis, curvatures, curvature_rates):
   # psi to calculate a simple linearization of desired curvature
   current_curvature_desired = curvatures[0]
   psi = interp(delay, T_IDXS[:CONTROL_N], psis)
-  average_curvature_desired = psi / (v_ego * delay)
+  v = interp(delay, T_IDXS[:CONTROL_N], velocities)
+  v = max(MIN_SPEED, (v + velocities[0]) / 2)
+  average_curvature_desired = psi / (v * delay)
   desired_curvature = 2 * average_curvature_desired - current_curvature_desired
 
   # This is the "desired rate of the setpoint" not an actual desired rate
