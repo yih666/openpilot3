@@ -113,7 +113,7 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalActuatorDelayLowerBound = 0.3
     ret.longitudinalActuatorDelayUpperBound = 0.5
 
-    ret.stopAccel = -0.8
+    ret.stopAccel = -0.5
     ret.stoppingDecelRate = float(int(Params().get("StoppingDecelRate", encoding="utf8"))) * 0.01
     ret.vEgoStopping = float(int(Params().get("SccStoppingCost", encoding="utf8"))) * 0.01
     ret.vEgoStarting = float(int(Params().get("SccStartingCost", encoding="utf8"))) * 0.01
