@@ -46,12 +46,6 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       "../assets/offroad/icon_openpilot.png",
     },
     {
-      "SccConnectedBus2",
-      "SCC Module connected BUS2",
-      "",
-      "../assets/offroad/icon_warning.png",
-    },
-    {
       "IsMetric",
       "미터법 사용",
       "mi/h 대신 km/h 단위로 속도를 표시합니다.",
@@ -693,7 +687,19 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
                                             "휠스피드 센서 속도를 사용시 오프.",
                                             "../assets/offroad/icon_road.png",
                                             this));
-
+  
+  toggles.append(new ParamControl("LongControlEnabled",
+                                            "Enable HKG Long Control",
+                                            "warnings: it is beta, be careful!! Openpilot will control the speed of your car",
+                                            "../assets/offroad/icon_road.png",
+                                            this));
+  
+  toggles.append(new ParamControl("MadModeEnabled",
+                                            "Enable HKG MAD mode",
+                                            "Openpilot will engage when turn cruise control on",
+                                            "../assets/offroad/icon_openpilot.png",
+                                            this));
+  
   toggles.append(new ParamControl("SccSmootherSlowOnCurves",
                                             "SCC기반 커브감속",
                                             "SCC 설정 시 곡률에 따른 속도 감속 기능을 사용",

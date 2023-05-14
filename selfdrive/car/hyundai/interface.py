@@ -21,6 +21,7 @@ class CarInterface(CarInterfaceBase):
   def __init__(self, CP, CarController, CarState):
     super().__init__(CP, CarController, CarState)
     self.cp2 = self.CS.get_can2_parser(CP)
+    self.mad_mode_enabled = Params().get_bool('MadModeEnabled')
 
   @staticmethod
   def get_pid_accel_limits(CP, current_speed, cruise_speed):
@@ -35,11 +36,10 @@ class CarInterface(CarInterfaceBase):
   def get_params(candidate, fingerprint=gen_empty_fingerprint(), car_fw=[], disable_radar=False):  # pylint: disable=dangerous-default-value
     ret = CarInterfaceBase.get_std_params(candidate, fingerprint)
 
-    ret.openpilotLongitudinalControl = Params().get_bool('SccConnectedBus2') or disable_radar
+    ret.openpilotLongitudinalControl = Params().get_bool('LongControlEnabled')
 
     ret.carName = "hyundai"
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.hyundaiLegacy, 0)]
-    ret.radarOffCan = RADAR_START_ADDR not in fingerprint[1] or DBC[ret.carFingerprint]["radar"] is None
 
     tire_stiffness_factor = 0.85
     if Params().get_bool('SteerLockout'):
@@ -343,16 +343,13 @@ class CarInterface(CarInterfaceBase):
     # ignore CAN2 address if L-CAN on the same BUS
     ret.mdpsBus = 1 if 593 in fingerprint[1] and 1296 not in fingerprint[1] else 0    
     ret.sasBus = 1 if 688 in fingerprint[1] and 1296 not in fingerprint[1] else 0
-    ret.sccBus = 2 if 1056 in fingerprint[2] else 0 if 1056 in fingerprint[0] else -1
-
-    ret.sccBus = 0
-    if Params().get_bool("SccConnectedBus2"):
-      ret.sccBus = 2
-	
-    if ret.sccBus == 2:
+    ret.sccBus = 0 if 1056 in fingerprint[0] else 1 if 1056 in fingerprint[1] and 1296 not in fingerprint[1] \
+                                                                     else 2 if 1056 in fingerprint[2] else -1
+    
+    if ret.sccBus >= 0:
       ret.hasScc13 = 1290 in fingerprint[ret.sccBus]
       ret.hasScc14 = 905 in fingerprint[ret.sccBus]
-
+	
     ret.hasEms = 608 in fingerprint[0] and 809 in fingerprint[0]
     ret.hasLfaHda = 1157 in fingerprint[0]
 
@@ -366,7 +363,7 @@ class CarInterface(CarInterfaceBase):
       ret.minSteerSpeed = 0	
 
     # set safety_hyundai_community only for non-SCC, MDPS harrness or SCC harrness cars or cars that have unknown issue
-    if ret.radarOffCan or ret.mdpsBus == 1 or ret.openpilotLongitudinalControl or ret.sccBus == 1:
+    if ret.radarOffCan or ret.mdpsBus == 1 or ret.openpilotLongitudinalControl or ret.sccBus == 1 or Params().get_bool('MadModeEnabled'):
       ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.hyundaiCommunity, 0)]
 
     return ret
@@ -390,8 +387,8 @@ class CarInterface(CarInterfaceBase):
 
     # most HKG cars has no long control, it is safer and easier to engage by main on
 
-    #if self.mad_mode_enabled:
-    ret.cruiseState.enabled = ret.cruiseState.available
+    if self.mad_mode_enabled:
+      ret.cruiseState.enabled = ret.cruiseState.available
 
     # turning indicator alert logic
     if not self.CC.keep_steering_turn_signals and (ret.leftBlinker or ret.rightBlinker or self.CC.turning_signal_timer) and ret.vEgo < LANE_CHANGE_SPEED_MIN - 1.2:

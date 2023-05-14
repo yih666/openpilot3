@@ -200,7 +200,8 @@ class Controls:
 
     self.wide_camera = TICI and params.get_bool('EnableWideCamera')
     self.disable_op_fcw = params.get_bool('DisableOpFcw')
-
+    self.mad_mode_enabled = Params().get_bool('MadModeEnabled')
+    
     # TODO: no longer necessary, aside from process replay
     self.sm['liveParameters'].valid = True
 

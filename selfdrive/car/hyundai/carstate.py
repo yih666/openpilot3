@@ -49,8 +49,8 @@ class CarState(CarStateBase):
     self.cruiseState_speed = 0
 
     self.use_cluster_speed = Params().get_bool('UseClusterSpeed')
-    self.long_control_enabled = Params().get_bool('SccConnectedBus2')
-    
+    self.long_control_enabled = Params().get_bool('LongControlEnabled')
+
     # janpoo6427
     self.prev_cruiseState_speed = 0
     self.obj_valid = 0
