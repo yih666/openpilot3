@@ -83,7 +83,7 @@ def manager_init() -> None:
     ("StoppingDecelRate", "5"),
     ("SccStoppingCost", "25"),
     ("SccStartingCost", "25"),
-    ("Steer_SRTune", "0"),
+    ("Steer_SRTune", "1"),
     ("Steer_SRTune_v", "100"),
     ("OpkrLaneChangeSpeed", "30"),
     ("SteerDeltaUp", "3"),       
