@@ -94,7 +94,7 @@ class CarInterface(CarInterfaceBase):
 
     ret.steerActuatorDelay = 0.12
     ret.steerLimitTimer = 0.8
-    ret.steerRatio = 15.8
+    ret.steerRatio = 15.3
 	
     # longitudinal
     #ret.longitudinalTuning.kpBP = [0., 10., 40.]
