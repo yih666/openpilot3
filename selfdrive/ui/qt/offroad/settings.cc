@@ -803,6 +803,8 @@ TUNINGPanel::TUNINGPanel(QWidget* parent) : QWidget(parent) {
     toggleLayout->addWidget(new LaneChangeSpeed());
     toggleLayout->addWidget(new CValueControl("PathOffset", "차선 좌우보정", "좌측이동(-), 우측이동(+)", "../assets/offroad/icon_road.png", -200, 200, 1));
     toggleLayout->addWidget(horizontal_line());
+    toggleLayout->addWidget(new BrightnessControl());
+    toggleLayout->addWidget(horizontal_line());
     toggleLayout->addWidget(new ParamControl("CustomRoadUI", "Custom Road UI", "Personalize the road UI of openpilot.", "../assets/offroad/icon_road.png"));
     toggleLayout->addWidget(new LaneLinesWidth());
     toggleLayout->addWidget(new PathWidth());
@@ -1134,4 +1136,70 @@ BlindspotLineWidth::BlindspotLineWidth() : AbstractControl("   BlindspotLine Wid
 
 void BlindspotLineWidth::refresh() {
   label.setText(QString::fromStdString(params.get("BlindspotLineWidth")) + "feet");            
+}
+
+BrightnessControl::BrightnessControl() : AbstractControl("EON Brightness Control(%)", "Manually adjust the brightness of the EON screen.", "../assets/offroad/icon_shell.png") {
+
+  label.setAlignment(Qt::AlignVCenter|Qt::AlignRight);
+  label.setStyleSheet("color: #e0e879");
+  hlayout->addWidget(&label);
+
+  btnminus.setStyleSheet(R"(
+    padding: 0;
+    border-radius: 50px;
+    font-size: 35px;
+    font-weight: 500;
+    color: #E4E4E4;
+    background-color: #393939;
+  )");
+  btnplus.setStyleSheet(R"(
+    padding: 0;
+    border-radius: 50px;
+    font-size: 35px;
+    font-weight: 500;
+    color: #E4E4E4;
+    background-color: #393939;
+  )");
+  btnminus.setFixedSize(150, 100);
+  btnplus.setFixedSize(150, 100);
+  btnminus.setText("－");
+  btnplus.setText("＋");
+  hlayout->addWidget(&btnminus);
+  hlayout->addWidget(&btnplus);
+
+  QObject::connect(&btnminus, &QPushButton::clicked, [=]() {
+    auto str = QString::fromStdString(params.get("OpkrUIBrightness"));
+    int value = str.toInt();
+    value = value - 5;
+    if (value <= 0) {
+      value = 0;
+    }
+    uiState()->scene.brightness = value;
+    QString values = QString::number(value);
+    params.put("OpkrUIBrightness", values.toStdString());
+    refresh();
+  });
+  
+  QObject::connect(&btnplus, &QPushButton::clicked, [=]() {
+    auto str = QString::fromStdString(params.get("OpkrUIBrightness"));
+    int value = str.toInt();
+    value = value + 5;
+    if (value >= 100) {
+      value = 100;
+    }
+    uiState()->scene.brightness = value;
+    QString values = QString::number(value);
+    params.put("OpkrUIBrightness", values.toStdString());
+    refresh();
+  });
+  refresh();
+}
+
+void BrightnessControl::refresh() {
+  QString option = QString::fromStdString(params.get("OpkrUIBrightness"));
+  if (option == "0") {
+    label.setText("Auto");
+  } else {
+    label.setText(QString::fromStdString(params.get("OpkrUIBrightness")));
+  }
 }

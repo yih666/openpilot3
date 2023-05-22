@@ -96,6 +96,7 @@ typedef struct UIScene {
   mat3 view_from_calib;
   
   int lateralControlSelect;
+  int brightness;
   float output_scale;
   float angleSteers;
   bool steerOverride;

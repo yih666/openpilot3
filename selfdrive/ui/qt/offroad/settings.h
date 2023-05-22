@@ -232,3 +232,18 @@ private:
 
   void refresh();
 };
+
+class BrightnessControl : public AbstractControl {
+  Q_OBJECT
+
+public:
+  BrightnessControl();
+
+private:
+  QPushButton btnplus;
+  QPushButton btnminus;
+  QLabel label;
+  Params params;
+  
+  void refresh();
+};

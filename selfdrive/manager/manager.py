@@ -100,6 +100,7 @@ def manager_init() -> None:
     ("UnlimitedLength", "1"),
     ("AutoNaviSpeedCtrlStart", "22"),
     ("AutoNaviSpeedCtrlEnd", "6"),
+    ("OpkrUIBrightness", "0"),
     ("PutPrebuilt", "0"), 
   ]
   if not PC:
