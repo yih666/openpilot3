@@ -6,8 +6,6 @@ import sysconfig
 import platform
 import numpy as np
 
-import SCons.Errors
-
 TICI = os.path.isfile('/TICI')
 Decider('MD5-timestamp')
 
@@ -328,11 +326,7 @@ else:
   elif arch != "Darwin":
     qt_libs += ["GL"]
 
-try:
-  qt_env.Tool('qt3')
-except SCons.Errors.UserError:
-  qt_env.Tool('qt')
-
+qt_env.Tool('qt')
 qt_env['CPPPATH'] += qt_dirs + ["#selfdrive/ui/qt/"]
 qt_flags = [
   "-D_REENTRANT",
