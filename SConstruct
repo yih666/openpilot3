@@ -327,7 +327,6 @@ else:
     qt_libs += ["GLESv2", "wayland-client"]
   elif arch != "Darwin":
     qt_libs += ["GL"]
-qt_env['QT3DIR'] = qt_env['QTDIR']
 
 try:
   qt_env.Tool('qt3')
