@@ -432,19 +432,19 @@ class SccSmoother:
           ButtonPrev = b.type
         elif not b.pressed and ButtonCnt:
           if not LongPressed and b.type == ButtonType.accelCruise:
-            v_cruise_kph += 1 if metric else 1 * CV.MPH_TO_KPH
+            v_cruise_kph += 5 if metric else 5 * CV.MPH_TO_KPH
           elif not LongPressed and b.type == ButtonType.decelCruise:
-            v_cruise_kph -= 1 if metric else 1 * CV.MPH_TO_KPH
+            v_cruise_kph -= 5 if metric else 5 * CV.MPH_TO_KPH
           LongPressed = False
           ButtonCnt = 0
-      if ButtonCnt > 70:
+      if ButtonCnt > 40:
         LongPressed = True
         V_CRUISE_DELTA = V_CRUISE_DELTA_KM if metric else V_CRUISE_DELTA_MI
         if ButtonPrev == ButtonType.accelCruise:
           v_cruise_kph += V_CRUISE_DELTA - v_cruise_kph % V_CRUISE_DELTA
         elif ButtonPrev == ButtonType.decelCruise:
           v_cruise_kph -= V_CRUISE_DELTA - -v_cruise_kph % V_CRUISE_DELTA
-        ButtonCnt %= 70
+        ButtonCnt %= 40
       v_cruise_kph = clip(v_cruise_kph, MIN_SET_SPEED_KPH, MAX_SET_SPEED_KPH)
 
     return v_cruise_kph
