@@ -46,12 +46,6 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       "../assets/offroad/icon_openpilot.png",
     },
     {
-      "IsLdwEnabled",
-      "Enable Lane Departure Warnings",
-      "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line without a turn signal activated while driving over 31 mph (50 km/h).",
-      "../assets/offroad/icon_warning.png",
-    },
-    {
       "IsMetric",
       "미터법 사용",
       "mi/h 대신 km/h 단위로 속도를 표시합니다.",
@@ -692,6 +686,12 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
                                             "계기판 속도 사용",
                                             "휠스피드 센서 속도를 사용시 오프.",
                                             "../assets/offroad/icon_road.png",
+                                            this));
+  
+  toggles.append(new ParamControl("IsLdwsCar",
+                                            tr("LDWS only"),
+                                            tr("If your car only supports LDWS, turn it on."),
+                                            "../assets/offroad/icon_openpilot.png",
                                             this));
   
   toggles.append(new ParamControl("LongControlEnabled",
