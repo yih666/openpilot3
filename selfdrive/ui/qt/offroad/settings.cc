@@ -688,12 +688,6 @@ CommunityPanel::CommunityPanel(QWidget* parent) : QWidget(parent) {
                                             "../assets/offroad/icon_road.png",
                                             this));
   
-  toggles.append(new ParamControl("IsLdwsCar",
-                                            tr("LDWS only"),
-                                            tr("If your car only supports LDWS, turn it on."),
-                                            "../assets/offroad/icon_openpilot.png",
-                                            this));
-  
   toggles.append(new ParamControl("LongControlEnabled",
                                             "Enable HKG Long Control",
                                             "warnings: it is beta, be careful!! Openpilot will control the speed of your car",
