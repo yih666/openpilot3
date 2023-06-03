@@ -287,6 +287,7 @@ void ui_update_params(UIState *s) {
   Params params;
   s->scene.is_metric = params.getBool("IsMetric");
   s->scene.compass = params.getBool("Compass");
+  s->scene.map_on_left = params.getBool("NavSettingLeftSide");
   s->scene.brightness = std::stoi(params.get("OpkrUIBrightness"));
   s->show_debug = params.getBool("ShowDebugUI");
   s->show_gear = params.getBool("ShowCgearUI");//기어
