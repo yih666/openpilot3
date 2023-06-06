@@ -18,9 +18,8 @@ from common.params import Params
 from selfdrive.controls.lib.events import Events
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
-AWARENESS_DECEL = -0.2  # car smoothly decel at .2m/s^2 when user is distracted
 A_CRUISE_MIN = -1.2
-A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
+A_CRUISE_MAX_VALS = [1.8, 1.3, 0.7, 0.5]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
 
 
@@ -107,9 +106,7 @@ class Planner:
                                                                         self.a_desired, v_cruise, sm)
 
     if force_slow_decel:
-      # if required so, force a smooth deceleration
-      accel_limits_turns[1] = min(accel_limits_turns[1], AWARENESS_DECEL)
-      accel_limits_turns[0] = min(accel_limits_turns[0], accel_limits_turns[1])
+      v_cruise = 0.0
     # clip limits, cannot init MPC outside of bounds
     accel_limits_turns[0] = min(accel_limits_turns[0], self.a_desired + 0.05, a_min_sol)
     accel_limits_turns[1] = max(accel_limits_turns[1], self.a_desired - 0.05)

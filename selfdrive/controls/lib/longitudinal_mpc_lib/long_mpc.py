@@ -359,20 +359,25 @@ class LongitudinalMpc:
     self.cruise_min_a = min_a
     self.cruise_max_a = max_a
 
-  def update_TF(self, carstate):
+  def update_TF(self, carstate, radarstate, v_ego, a_ego):
     cruise_gap = int(clip(carstate.cruiseGap, 1., 4.))
     if cruise_gap == 1:
-      self.desired_TF = 1.0
+      self.desired_TF = 0.9
     elif cruise_gap == 2:
-      self.desired_TF = 1.25
+      self.desired_TF = 1.2
     elif cruise_gap == 3:
-      x_vel = [0., 50.*CV.KPH_TO_MS, 110.*CV.KPH_TO_MS]
-      y_dist = [1.45, 2.0, 2.3]
+      x_vel = [0., 60.*CV.KPH_TO_MS, 110.*CV.KPH_TO_MS]
+      y_dist = [1.45, 2.0, 2.2]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
     elif cruise_gap == 4:
       x_vel = [0., 30.*CV.KPH_TO_MS, 70.*CV.KPH_TO_MS, 110.*CV.KPH_TO_MS]
-      y_dist = [1.0, 1.1, 1.2, 1.45]
+      y_dist = [1.0, 1.1, 1.2, 1.3]
       self.desired_TF = np.interp(carstate.vEgo, x_vel, y_dist)
+      
+    if radarstate.leadOne.status:
+      self.desired_TF *= interp(radarstate.leadOne.vRel*3.6, [-100., 0, 100.], [self.applyDynamicTFollow, 1.0, self.applyDynamicTFollowApart])
+      self.desired_TF *= interp(radarstate.leadOne.aLeadK, [-4, 0], [self.applyDynamicTFollowDecel, 1.0])
+      self.desired_TF *= interp(a_ego, [-4, 0], [self.applyDynamicTFollowDecel, 1.0])
 
   def update(self, carstate, radarstate, v_cruise, prev_accel_constraint):
     v_ego = self.x0[1]
@@ -394,12 +399,7 @@ class LongitudinalMpc:
     lead_xv_0 = self.process_lead(radarstate.leadOne)
     lead_xv_1 = self.process_lead(radarstate.leadTwo)
     
-    if radarstate.leadOne.status:
-      self.desired_TF *= interp(radarstate.leadOne.vRel*3.6, [-100., 0, 100.], [self.applyDynamicTFollow, 1.0, self.applyDynamicTFollowApart])
-      self.desired_TF *= interp(radarstate.leadOne.aLeadK, [-4, 0], [self.applyDynamicTFollowDecel, 1.0])
-      self.desired_TF *= interp(a_ego, [-4, 0], [self.applyDynamicTFollowDecel, 1.0])
-    
-    self.update_TF(carstate)
+    self.update_TF(carstate, radarstate, v_ego, a_ego)
     self.set_weights(prev_accel_constraint=prev_accel_constraint, v_lead0=lead_xv_0[0,1], v_lead1=lead_xv_1[0,1])
 
     # set accel limits in params

@@ -28,7 +28,7 @@ class CarInterface(CarInterfaceBase):
     v_current_kph = current_speed * CV.MS_TO_KPH
 
     gas_max_bp = [0., 10., 20., 40., 70., 110., 130.]
-    gas_max_v = [1.5, 1.45, 1.25, 0.5, 0.325, 0.17, 0.12]
+    gas_max_v = [1.65, 1.6, 1.33, 0.59, 0.35, 0.17, 0.12]
 
     return CarControllerParams.ACCEL_MIN, interp(v_current_kph, gas_max_bp, gas_max_v)
 
@@ -92,7 +92,7 @@ class CarInterface(CarInterfaceBase):
         set_torque_tune(ret.lateralTuning, torque_params['LAT_ACCEL_FACTOR'], torque_params['FRICTION'])
 
 
-    ret.steerActuatorDelay = 0.12
+    ret.steerActuatorDelay = 0.1
     ret.steerLimitTimer = 0.8
     ret.steerRatio = 15.3
 	
@@ -100,17 +100,20 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalTuning.kpBP = [0., 5.*CV.KPH_TO_MS, 10.*CV.KPH_TO_MS, 30.*CV.KPH_TO_MS, 130.*CV.KPH_TO_MS]
     ret.longitudinalTuning.kpV = [1.3, 1.2, 1.0, 0.9, 0.5]
     ret.longitudinalTuning.kiBP = [0., 120. * CV.KPH_TO_MS]
-    ret.longitudinalTuning.kiV = [0.008, 0.002]
+    ret.longitudinalTuning.kiV = [0.002, 0.000]
     ret.longitudinalTuning.deadzoneBP = [0., 8.05]
     ret.longitudinalTuning.deadzoneV = [0., .14]
 
-    ret.longitudinalActuatorDelayLowerBound = 0.1
+    ret.longitudinalActuatorDelayLowerBound = 0.2
     ret.longitudinalActuatorDelayUpperBound = 0.5
 
-    ret.stopAccel = -1.5
-    ret.stoppingDecelRate = 0.3
-    ret.vEgoStopping = 0.5
-    ret.vEgoStarting = 0.5
+    ret.stoppingControl = True
+    ret.startingState = False # True # startAccel을 적용하는 startingState를 막음.
+    ret.vEgoStarting = 0.3
+    ret.vEgoStopping = 0.3
+    ret.startAccel = 2.0
+    ret.stoppingDecelRate = 0.3 # brake_travel/s while trying to stop
+
 
     # genesis
     if candidate == CAR.GENESIS:
