@@ -53,7 +53,7 @@ class CarInterface(CarInterfaceBase):
     # -------------PID
     if Params().get("LateralControlSelect", encoding='utf8') == "0":
       if candidate in [CAR.GENESIS, CAR.GENESIS_G80]:
-        ret.lateralTuning.pid.kf = 0.00007
+        ret.lateralTuning.pid.kf = 0.00006
         ret.lateralTuning.pid.kpBP = [0., 10., 30.]
         ret.lateralTuning.pid.kpV = [0.018, 0.035, 0.088]
         ret.lateralTuning.pid.kiBP = [0., 10., 30.]
@@ -92,7 +92,7 @@ class CarInterface(CarInterfaceBase):
         set_torque_tune(ret.lateralTuning, torque_params['LAT_ACCEL_FACTOR'], torque_params['FRICTION'])
 
 
-    ret.steerActuatorDelay = 0.1
+    ret.steerActuatorDelay = 0.2
     ret.steerLimitTimer = 0.8
     ret.steerRatio = 15.3
 	
@@ -108,7 +108,7 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalActuatorDelayUpperBound = 0.5
 
     ret.stoppingControl = True
-    ret.startingState = False # True # startAccelÀ» Àû¿ëÇÏ´Â startingState¸¦ ¸·À½.
+    ret.startingState = False # True # startAccelÃ€Â» Ã€Ã»Â¿Ã«Ã‡ÃÂ´Ã‚ startingStateÂ¸Â¦ Â¸Â·Ã€Â½.
     ret.vEgoStarting = 0.3
     ret.vEgoStopping = 0.3
     ret.startAccel = 2.0
