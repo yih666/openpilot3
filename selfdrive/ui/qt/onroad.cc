@@ -14,6 +14,7 @@
 #include "selfdrive/ui/qt/maps/map_helpers.h"
 #endif
 
+#define FONT_OPEN_SANS "Inter" //"Open Sans"
 OnroadWindow::OnroadWindow(QWidget *parent) : QWidget(parent) {
   QVBoxLayout *main_layout  = new QVBoxLayout(this);
   main_layout->setMargin(bdr_s);
@@ -617,56 +618,283 @@ void NvgWindow::drawLaneLines(QPainter &painter, const UIState *s) {
   painter.restore();
 }
 
-void NvgWindow::drawLead(QPainter &painter, const cereal::ModelDataV2::LeadDataV3::Reader &lead_data, const QPointF &vd, bool is_radar) {
+static float global_a_rel;
+static float global_a_rel_col;
+static float vc_speed;
+void NvgWindow::drawLead(QPainter &painter, const cereal::RadarState::LeadData::Reader &lead_data, const QPointF &vd, int num ) {
   painter.save();
-  
-  UIState* s = uiState();
-  SubMaster& sm = *(s->sm);
-  auto lead_radar = sm["radarState"].getRadarState().getLeadOne();
-  auto lead_one = sm["modelV2"].getModelV2().getLeadsV3()[0];
-  bool radar_detected = lead_radar.getStatus() && lead_radar.getRadar();
+  const float speedBuff = 10.;
+  const float leadBuff = 40.;
+  const float d_rel = lead_data.getDRel();
+  const float v_rel = lead_data.getVRel();
+
+  float fillAlpha = 0;
+  if (d_rel < leadBuff) {
+    fillAlpha = 255 * (1.0 - (d_rel / leadBuff));
+    if (v_rel < 0) {
+      fillAlpha += 255 * (-1 * (v_rel / speedBuff));
+    }
+    fillAlpha = (int)(fmin(fillAlpha, 255));
+  }
 	
-  const int icon_size = 256;
-  const float d_rel = lead_data.getX()[0];
   float sz = std::clamp((25 * 30) / (d_rel / 3 + 30), 15.0f, 30.0f) * 2.35;
   float x = std::clamp((float)vd.x(), 0.f, width() - sz / 2);
   float y = std::fmin(height() - sz * .6, (float)vd.y());
+	
+  float g_xo = sz / 5;
+  float g_yo = sz / 10;
 
-  int circle_size = 160;
-  QColor bgColor = QColor(0, 0, 0, 166);
-  float radar_dist = radar_detected ? lead_radar.getDRel() : 0;
-  float vision_dist = lead_one.getProb() > .5 ? (lead_one.getX()[0] - 0) : 0;
-  float disp_dist = (radar_detected) ? radar_dist : vision_dist;
 
-#ifdef __TEST
-  radar_detected = true;
-  disp_dist = 127.0;
+  float homebase_h = 12;
+  QPointF glow[] = {{x + (sz * 1.35) + g_xo, y + sz + g_yo + homebase_h},{x + (sz * 1.35) + g_xo, y + sz + g_yo}, {x, y - g_yo}, {x - (sz * 1.35) - g_xo, y + sz + g_yo},{x - (sz * 1.35) - g_xo, y + sz + g_yo + homebase_h}, {x, y + sz + homebase_h + g_yo + 10}};
+  painter.setBrush(QColor(218, 202, 37, 210));
+  painter.drawPolygon(glow, std::size(glow));
+
+  // chevron
+  QPointF chevron[] = {{x + (sz * 1.25), y + sz + homebase_h},{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz},{x - (sz * 1.25), y + sz + homebase_h}, {x, y + sz + homebase_h - 7}};
+  painter.setBrush(redColor(fillAlpha));
+  painter.drawPolygon(chevron, std::size(chevron));
+  
+  if(num == 0){
+    QString dist = QString::number(d_rel,'f',0) + "m";
+    int str_w = 200;
+    //QString kmph = QString::number((v_rel + vc_speed)*3.6,'f',0) + "k";
+    //int str_w2 = 200;
+
+    configFont(painter, FONT_OPEN_SANS, 44, "SemiBold");
+    painter.setPen(QColor(0x0, 0x0, 0x0 , 200));
+    float lock_indicator_dx = 2;
+    painter.drawText(QRect(x+2+lock_indicator_dx+90, y-50+60, str_w, 50), Qt::AlignBottom | Qt::AlignLeft, dist);
+    //painter.drawText(QRect(x+2-lock_indicator_dx-str_w2-2, y-50+2, str_w2, 50), Qt::AlignBottom | Qt::AlignRight, kmph);
+    painter.setPen(QColor(0xff, 0xff, 0xff));
+    painter.drawText(QRect(x+lock_indicator_dx+90, y-50+60, str_w, 50), Qt::AlignBottom | Qt::AlignLeft, dist);
+    if(global_a_rel >= global_a_rel_col){
+      global_a_rel_col = -0.1;
+      painter.setPen(QColor(0.09*255, 0.945*255, 0.26*255, 255));
+    } else {
+      global_a_rel_col = 0;
+      painter.setPen(QColor(245, 0, 0, 255));
+    }
+    //painter.drawText(QRect(x-lock_indicator_dx-str_w2-2, y-50, str_w2, 50), Qt::AlignBottom | Qt::AlignRight, kmph);
+    painter.setPen(Qt::NoPen);
+  }
+
+  painter.restore();
+}
+
+// Ichirio
+struct LeadcarLockon {
+  float x,y,d,a,lxt,lxf,lockOK;
+};
+#define LeadcarLockon_MAX 5
+LeadcarLockon leadcar_lockon[LeadcarLockon_MAX];
+
+void NvgWindow::drawLockon(QPainter &painter, const cereal::ModelDataV2::LeadDataV3::Reader &lead_data, const QPointF &vd , int num) {
+  const float d_rel = lead_data.getX()[0];
+  float a_rel = lead_data.getA()[0];
+  global_a_rel = a_rel;
+
+  float sz = std::clamp((25 * 30) / (d_rel / 3 + 30), 15.0f, 30.0f) * 2.35;
+  float x = std::clamp((float)vd.x(), 0.f, width() - sz / 2);
+  float y = (float)vd.y();
+
+  painter.setCompositionMode(QPainter::CompositionMode_Plus);
+
+  float prob_alpha = lead_data.getProb();
+  if(prob_alpha < 0){
+    prob_alpha = 0;
+  } else if(prob_alpha > 1.0){
+    prob_alpha = 1.0;
+  }
+  prob_alpha *= 245;
+
+  painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), 2));
+  painter.setBrush(QColor(0, 0, 0, 0));
+  float ww = 300 , hh = 300;
+  if(Hardware::TICI()){
+    ww *= 1.25; hh *= 1.25;
+  }
+  float d = d_rel;
+  if(d < 1){
+    d = 1;
+  }
+
+  leadcar_lockon[num].x = leadcar_lockon[num].x + (x - leadcar_lockon[num].x) / 6;
+  leadcar_lockon[num].y = leadcar_lockon[num].y + (y - leadcar_lockon[num].y) / 6;
+  leadcar_lockon[num].d = leadcar_lockon[num].d + (d - leadcar_lockon[num].d) / 6;
+  x = leadcar_lockon[num].x;
+  y = leadcar_lockon[num].y;
+  d = leadcar_lockon[num].d;
+  if(d < 1){
+    d = 1;
+  }
+
+  leadcar_lockon[num].a = leadcar_lockon[num].a + (a_rel - leadcar_lockon[num].a) / 10;
+  a_rel = leadcar_lockon[num].a;
+
+  float dh = 50;
+  ww *= 0.5; hh *= 0.5;
+  dh = 100;
+  float dd = d;
+  dd -= 5;
+  dd /= (95.0/10);
+  dd += 1;
+  if(dd < 1)dd = 1;
+  dh /= dd*dd;
+	
+  ww = ww * 2 * 5 / d;
+  hh = hh * 2 * 5 / d;
+  y = std::fmin(height() /*- sz * .6*/, y - dh) + dh;
+  QRect r = QRect(x - ww/2, y /*- g_yo*/ - hh - dh, ww, hh);
+
+#if 0
+  float y0 = lead0.getY()[0];
+  float y1 = lead1.getY()[0];
+#else
+  float y0 = leadcar_lockon[0].x * leadcar_lockon[0].d;
+  float y1 = leadcar_lockon[1].x * leadcar_lockon[1].d;
 #endif
 
-  QString str;
-  QColor textColor = QColor(255, 255, 255, 255);
+  configFont(painter, FONT_OPEN_SANS, 38, "SemiBold");
+  if(num == 0){
+    painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), 2));
+    painter.drawRect(r);
 
-  if (radar_detected) {
-      float radar_rel_speed = lead_radar.getVRel();
-      //str.sprintf("%.0fkm/h", m_cur_speed + radar_rel_speed * 3.6);
-      if (disp_dist < 21) bgColor = redColor(180);
-      else if (disp_dist < 51) bgColor = orangeColor(180);
-      else if (disp_dist < 81) bgColor = greenColor(200);  
-      else if (disp_dist > 80)bgColor = blackColor(200);
+    if(leadcar_lockon[0].x > leadcar_lockon[1].x - 20){
+      leadcar_lockon[num].lxt = leadcar_lockon[num].lxt + (r.right() - leadcar_lockon[num].lxt) / 20;
+      leadcar_lockon[num].lxf = leadcar_lockon[num].lxf + (width() - leadcar_lockon[num].lxf) / 20;
+    } else {
+      leadcar_lockon[num].lxt = leadcar_lockon[num].lxt + (r.left() - leadcar_lockon[num].lxt) / 20;
+      leadcar_lockon[num].lxf = leadcar_lockon[num].lxf + (0 - leadcar_lockon[num].lxf) / 20;
+    }
+    painter.drawText(r, Qt::AlignTop | Qt::AlignLeft, " " + QString::number(num+1));
 
+    float lxt = leadcar_lockon[num].lxt;
+    if(lxt < r.left()){
+      lxt = r.left();
+    } else if(lxt > r.right()){
+      lxt = r.right();
+    }
+    painter.drawLine(lxt,r.top() , leadcar_lockon[num].lxf , 0);
+    if(ww >= 40){
       painter.setPen(Qt::NoPen);
-      painter.setBrush(bgColor);
-      painter.drawEllipse(x - circle_size / 2, y - circle_size / 2, circle_size, circle_size);
+      float wwa = ww * 0.15;
+      if(wwa > 40){
+        wwa = 40;
+      } else if(wwa < 10){
+        wwa = 10;
+      }
+      if(wwa > ww){
+        wwa = ww;
+      }
+
+      float hha = 0;
+      if(a_rel > 0){
+        hha = 1 - 0.1 / a_rel;
+        painter.setBrush(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha*0.9));
+
+        if(hha < 0){
+          hha = 0;
+        }
+        hha = hha * hh;
+#if 0
+        QRect ra = QRect(x - ww/2 + (ww - wwa), y /*- g_yo*/ - hh - dh + (hh-hha), wwa, hha);
+        painter.drawRect(ra);
+#else
+        QPointF meter[] = {{(float)x + ww/2 - wwa/2 - wwa/2 * hha / hh , (float)y /*- g_yo*/ - hh - dh + (hh-hha)},{(float)x + ww/2 , (float)y /*- g_yo*/ - hh - dh + (hh-hha)}, {(float)x + ww/2 , (float)y /*- g_yo*/ - hh - dh + hh}, {(float)x + ww/2 - wwa/2 , (float)y /*- g_yo*/ - hh - dh + hh}};
+        painter.drawPolygon(meter, std::size(meter));
+#endif
+      }
+      if(a_rel < 0){
+        hha = 1 + 0.1 / a_rel;
+        painter.setBrush(QColor(245, 0, 0, prob_alpha));
+        if(hha < 0){
+          hha = 0;
+        }
+        hha = hha * hh;
+#if 0
+        QRect ra = QRect(x - ww/2 + (ww - wwa), y /*- g_yo*/ - hh - dh , wwa, hha);
+        painter.drawRect(ra);
+#else
+        QPointF meter[] = {{(float)x + ww/2 - wwa/2 , (float)y /*- g_yo*/ - hh - dh},{(float)x + ww/2 , (float)y /*- g_yo*/ - hh - dh}, {(float)x + ww/2 , (float)y /*- g_yo*/ - hh - dh + hha}, {(float)x + ww/2 - wwa/2 - wwa/2 * hha / hh, (float)y /*- g_yo*/ - hh - dh + hha}};
+        painter.drawPolygon(meter, std::size(meter));
+#endif
+      }
+    }
+
+    if(std::abs(y0 - y1) <= 300
+    ){
+      leadcar_lockon[num].lockOK = leadcar_lockon[num].lockOK + (40 - leadcar_lockon[num].lockOK) / 5;
+    } else {
+      leadcar_lockon[num].lockOK = leadcar_lockon[num].lockOK + (0 - leadcar_lockon[num].lockOK) / 5;
+    }
+    float td = leadcar_lockon[num].lockOK;
+    if(td >= 3){
+      float dd = leadcar_lockon[num].d;
+      if(dd < 10){
+        dd = 10;
+      }
+      dd -= 10;
+      dd /= (90.0/2);
+      dd += 1;
+      td /= dd;
+
+      float tlw = 8;
+      float tlw_2 = tlw / 2;
+      painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), tlw));
+      painter.drawLine(r.center().x() , r.top()-tlw_2 , r.center().x() , r.top() - td);
+      painter.drawLine(r.left()-tlw_2 , r.center().y() , r.left() - td , r.center().y());
+      painter.drawLine(r.right()+tlw_2 , r.center().y() , r.right() + td , r.center().y());
+      painter.drawLine(r.center().x() , r.bottom()+tlw_2 , r.center().x() , r.bottom() + td);
+    }
+
+  } else if(true){
+    if(num == 1){
+      if(std::abs(y0 - y1) > 300
+      ){
+        painter.setPen(QPen(QColor(245, 0, 0, prob_alpha), 2));
+      } else {
+        painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), 2));
+      }
+
+      if(leadcar_lockon[0].x > leadcar_lockon[1].x - 20){
+        leadcar_lockon[num].lxt = leadcar_lockon[num].lxt + (r.left() - leadcar_lockon[num].lxt) / 20;
+        leadcar_lockon[num].lxf = leadcar_lockon[num].lxf + (0 - leadcar_lockon[num].lxf) / 20;
+      } else {
+        leadcar_lockon[num].lxt = leadcar_lockon[num].lxt + (r.right() - leadcar_lockon[num].lxt) / 20;
+        leadcar_lockon[num].lxf = leadcar_lockon[num].lxf + (width() - leadcar_lockon[num].lxf) / 20;
+      }
+      float lxt = leadcar_lockon[num].lxt;
+      if(lxt < r.left()){
+        lxt = r.left();
+      } else if(lxt > r.right()){
+        lxt = r.right();
+      }
+      painter.drawLine(lxt,r.top() , leadcar_lockon[num].lxf , 0);
+
+      if(ww >= 80){
+      }
+    } else if(num == 2){
+      painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), 2));
+      //painter.drawLine(r.right(),r.center().y() , width() , height());
+    } else {
+      painter.setPen(QPen(QColor(0.09*255, 0.945*255, 0.26*255, prob_alpha), 2));
+      //painter.drawLine(r.left(),r.center().y() , 0 , height());
+    }
+
+    painter.drawRect(r);
+
+    if(ww >= 80){
+      float d_lim = 12;
+      if(num == 0 || (num==1 && (d_rel < d_lim || std::abs(y0 - y1) > 300))){
+        painter.drawText(r, Qt::AlignBottom | Qt::AlignLeft, " " + QString::number(num+1));
+      }
+    }
+    if(ww >= 160){
+    }
   }
-  painter.setOpacity(1.0);
-  painter.drawPixmap(x - icon_size / 2, y - icon_size / 2, icon_size, icon_size, (radar_detected) ? ic_radar : ic_radar_vision);
-  configFont(painter, "Inter", 60, "Bold");
-  if(disp_dist<10.0) str.sprintf("%.1f", disp_dist);
-  else str.sprintf("%.0f", disp_dist);
-  drawTextWithColor(painter, x, y + 22.0, str, textColor);
-	
-	
-  painter.restore();
+  painter.setPen(Qt::NoPen);
+  painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
 }
 
 void NvgWindow::paintGL() {
@@ -717,17 +945,27 @@ void NvgWindow::drawCommunity(QPainter &p) {
   p.fillRect(0, 0, width(), header_h, bg);
 
   UIState *s = uiState();
-
-  const SubMaster &sm = *(s->sm);
-
-  auto leads = sm["modelV2"].getModelV2().getLeadsV3();
-  if (leads[0].getProb() > .5) {
-    drawLead(p, leads[0], s->scene.lead_vertices[0], s->scene.lead_radar[0]);
+  SubMaster &sm = *(s->sm);
+  const double start_draw_t = millis_since_boot();
+  const cereal::ModelDataV2::Reader &model = sm["modelV2"].getModelV2();
+  const cereal::RadarState::Reader &radar_state = sm["radarState"].getRadarState();
+	
+  const auto leads = model.getLeadsV3();
+  size_t leads_num = leads.size();
+  for(size_t i=0; i<leads_num && i < LeadcarLockon_MAX; i++){
+    if(leads[i].getProb() > .2){
+      drawLockon(p, leads[i], s->scene.lead_vertices[i] , i);
+    }
+   auto lead_one = radar_state.getLeadOne();
+   auto lead_two = radar_state.getLeadTwo();
+   if (lead_one.getStatus()) {
+     drawLead(p, lead_one, s->scene.lead_vertices[0], 0);
+   }
+   if (lead_two.getStatus() && (std::abs(lead_one.getDRel() - lead_two.getDRel()) > 3.0)) {
+     drawLead(p, lead_two, s->scene.lead_vertices[1], 1);
+   }
   }
-  if (leads[1].getProb() > .5 && (std::abs(leads[1].getX()[0] - leads[0].getX()[0]) > 3.0)) {
-    drawLead(p, leads[1], s->scene.lead_vertices[1], s->scene.lead_radar[1]);
-  }
-
+	
   drawMaxSpeed(p);
   drawSpeed(p);
   drawTurnSignals(p);
@@ -927,13 +1165,14 @@ void NvgWindow::drawBottomIcons(QPainter &p) {
   //drawTextWithColor(p, x +dx+20, y - 135, "", textColor);
 	
  if (s->show_datetime && width() > 1200) {
-      // ajouatom: 현재시간표시
-      QTextOption  textOpt = QTextOption(Qt::AlignLeft);
-      configFont(p, "Open Sans", 36, "Bold");
-      p.drawText(QRect(1158, 985, width(), 150), QDateTime::currentDateTime().toString("MM월dd ddd hh:mm"), textOpt);
-      //configFont(p, "Open Sans", 60, "Bold");
-      //p.drawText(QRect(270, 150, width(), 100), QDateTime::currentDateTime().toString("MM월 dd일 (ddd)"), textOpt);	
-  }	
+     // ajouatom: 현재시간표시
+     QTextOption  textOpt = QTextOption(Qt::AlignLeft);
+     configFont(p, "Open Sans", 65, "Bold");
+     p.drawText(QRect(270, 30, width(), 70), QDateTime::currentDateTime().toString("hh:mm"), textOpt);
+     configFont(p, "Open Sans", 60, "Bold");
+     p.drawText(QRect(270, 150, width(), 70), QDateTime::currentDateTime().toString("MM-dd(ddd)"), textOpt);
+  }
+	
   p.setOpacity(1.);
 }
 
