@@ -80,7 +80,7 @@ def manager_init() -> None:
     ("ApplyDynamicTFollow", "105"),
     ("ApplyDynamicTFollowApart", "95"),
     ("ApplyDynamicTFollowDecel", "105"),
-    ("Steer_SRTune", "0"),
+    ("Steer_SRTune", "1"),
     ("Steer_SRTune_v", "100"),
     ("OpkrLaneChangeSpeed", "30"),
     ("SteerDeltaUp", "3"),       
@@ -97,8 +97,8 @@ def manager_init() -> None:
     ("UnlimitedLength", "1"),
     ("AutoNaviSpeedCtrlStart", "22"),
     ("AutoNaviSpeedCtrlEnd", "6"),
-    ("LeadDangerFactor", "80"),
-	("OpkrUIBrightness", "0"),
+    ("LeadDangerFactor", "75"),
+    ("OpkrUIBrightness", "0"),
     ("PutPrebuilt", "0"), 
   ]
   if not PC:
