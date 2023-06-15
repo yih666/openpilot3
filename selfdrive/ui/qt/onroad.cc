@@ -899,7 +899,7 @@ void NvgWindow::drawLockon(QPainter &painter, const cereal::ModelDataV2::LeadDat
 
 void NvgWindow::paintGL() {
   CameraViewWidget::paintGL();
-	
+
   UIState *s = uiState();
   if (s->worldObjectsVisible()) { 
     if(!s->recording) {
@@ -993,7 +993,8 @@ void NvgWindow::drawCommunity(QPainter &p) {
   const auto car_params = sm["carParams"].getCarParams();
   const auto live_params = sm["liveParameters"].getLiveParameters();
   const auto device_state = sm["deviceState"].getDeviceState();
-	
+  float distance_traveled = sm["controlsState"].getControlsState().getDistanceTraveled() / 1000;
+  	
   int lateralControlState = controls_state.getLateralControlSelect();
   const char* lateral_state[] = {"PID", "INDI", "LQR", "TORQUE" };
 	
@@ -1010,14 +1011,15 @@ void NvgWindow::drawCommunity(QPainter &p) {
   int scc_bus = car_params.getSccBus();
 
   QString infoText;
-  infoText.sprintf("    %s             SR%.2f             CPU %.1f°              SCC %d ",
+  infoText.sprintf("          %s                  SR %.2f                   CPU온도 %.0f°C                   SCC %d                    주행거리  %.0f m",
 		      lateral_state[lateralControlState],
                       //live_params.getAngleOffsetDeg(),
                       //live_params.getAngleOffsetAverageDeg(),
                       controls_state.getSteerRatio(),
                       //controls_state.getSteerActuatorDelay(),
 		      cpuTemp,
-                      scc_bus
+                      scc_bus,
+		      controls_state.getDistanceTraveled()
                       );
 
   // info

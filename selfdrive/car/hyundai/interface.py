@@ -28,7 +28,7 @@ class CarInterface(CarInterfaceBase):
     v_current_kph = current_speed * CV.MS_TO_KPH
 
     gas_max_bp = [0., 10., 20., 40., 70., 110., 130.]
-    gas_max_v = [1.65, 1.6, 1.33, 0.59, 0.35, 0.17, 0.12]
+    gas_max_v = [1.6, 1.58, 1.33, 0.59, 0.35, 0.17, 0.12]
 
     return CarControllerParams.ACCEL_MIN, interp(v_current_kph, gas_max_bp, gas_max_v)
 
@@ -53,7 +53,7 @@ class CarInterface(CarInterfaceBase):
     # -------------PID
     if Params().get("LateralControlSelect", encoding='utf8') == "0":
       if candidate in [CAR.GENESIS, CAR.GENESIS_G80]:
-        ret.lateralTuning.pid.kf = 0.00006
+        ret.lateralTuning.pid.kf = 0.00007
         ret.lateralTuning.pid.kpBP = [0., 10., 30.]
         ret.lateralTuning.pid.kpV = [0.018, 0.035, 0.088]
         ret.lateralTuning.pid.kiBP = [0., 10., 30.]
@@ -92,7 +92,7 @@ class CarInterface(CarInterfaceBase):
         set_torque_tune(ret.lateralTuning, torque_params['LAT_ACCEL_FACTOR'], torque_params['FRICTION'])
 
 
-    ret.steerActuatorDelay = 0.2
+    ret.steerActuatorDelay = 0.3
     ret.steerLimitTimer = 0.8
     ret.steerRatio = 15.3
 	
@@ -108,7 +108,7 @@ class CarInterface(CarInterfaceBase):
     ret.longitudinalActuatorDelayUpperBound = 0.5
 
     ret.stoppingControl = True
-    ret.startingState = False # True # startAccelÀ» Àû¿ëÇÏ´Â startingState¸¦ ¸·À½.
+    ret.startingState = False # True # startAccel을 적용하는 startingState를 막음.
     ret.vEgoStarting = 0.3
     ret.vEgoStopping = 0.3
     ret.startAccel = 2.0
