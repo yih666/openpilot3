@@ -1011,15 +1011,15 @@ void NvgWindow::drawCommunity(QPainter &p) {
   int scc_bus = car_params.getSccBus();
 
   QString infoText;
-  infoText.sprintf("          %s                  SR %.2f                   CPU온도 %.0f°C                   SCC %d                    주행거리  %.0f m",
+  infoText.sprintf("          %s                  SR %.2f                   CPU온도 %.0f°C                   주행거리  %.0f m                    SCC %d",
 		      lateral_state[lateralControlState],
                       //live_params.getAngleOffsetDeg(),
                       //live_params.getAngleOffsetAverageDeg(),
                       controls_state.getSteerRatio(),
                       //controls_state.getSteerActuatorDelay(),
 		      cpuTemp,
-                      scc_bus,
 		      controls_state.getDistanceTraveled()
+                      scc_bus,
                       );
 
   // info
