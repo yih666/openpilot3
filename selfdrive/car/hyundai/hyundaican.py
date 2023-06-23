@@ -140,14 +140,14 @@ def create_scc11(packer, frame, enabled, set_speed, lead_visible, scc_live, scc1
 
   return packer.make_can_msg("SCC11", 0, values)
 
-def create_scc12(packer, apply_accel, enabled, cnt, scc_live, scc12, gaspressed, brakepressed,
+def create_scc12(packer, apply_accel, enabled, cnt, scc_live, scc12, long_override, brakepressed,
                  standstill, car_fingerprint):
   values = copy.copy(scc12)
 
   if car_fingerprint in EV_HYBRID_CAR:
     # from xps-genesis
     if enabled and not brakepressed:
-      values["ACCMode"] = 2 if gaspressed and (apply_accel > -0.2) else 1
+      values["ACCMode"] = 2 if long_override and (apply_accel > -0.2) else 1
       if apply_accel < 0.0 and standstill:
         values["StopReq"] = 1
       values["aReqRaw"] = apply_accel
@@ -177,27 +177,19 @@ def create_scc13(packer, scc13):
   values = copy.copy(scc13)
   return packer.make_can_msg("SCC13", 0, values)
 
-def create_scc14(packer, enabled, e_vgo, standstill, accel, gaspressed, objgap, scc14):
+def create_scc14(packer, enabled, e_vgo, standstill, accel, upper_jerk, lower_jerk, long_override, objgap, scc14):
   values = copy.copy(scc14)
 
   # from xps-genesis
   if enabled:
-    values["ACCMode"] = 2 if gaspressed and (accel > -0.2) else 1
+    values["ACCMode"] = 2 if long_override and (accel > -0.2) else 1
     values["ObjGap"] = objgap
     values["ObjGap2"] = 1 if objgap else 0
-    if standstill:
-      values["JerkUpperLimit"] = 0.5
-      values["JerkLowerLimit"] = 10.
-      values["ComfortBandUpper"] = 0.
-      values["ComfortBandLower"] = 0.
-      if e_vgo > 0.27:
-        values["ComfortBandUpper"] = 2.
-        values["ComfortBandLower"] = 0.
-    else:
-      values["JerkUpperLimit"] = 50.
-      values["JerkLowerLimit"] = 50.
-      values["ComfortBandUpper"] = 50.
-      values["ComfortBandLower"] = 50.
+
+    values["JerkUpperLimit"] = min(3.0, upper_jerk)
+    values["JerkLowerLimit"] = max(0.05, lower_jerk)
+    values["ComfortBandUpper"] = 0.0
+    values["ComfortBandLower"] = 0.0
 
   return packer.make_can_msg("SCC14", 0, values)
 
