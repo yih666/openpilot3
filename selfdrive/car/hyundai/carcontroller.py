@@ -22,7 +22,7 @@ min_set_speed = 30 * CV.KPH_TO_MS
 # EPS faults if you apply torque while the steering angle is above 90 degrees for more than 1 second
 # All slightly below EPS thresholds to avoid fault
 MAX_ANGLE = 85
-MAX_ANGLE_FRAMES = 87
+MAX_ANGLE_FRAMES = 89
 MAX_ANGLE_CONSECUTIVE_FRAMES = 2
 
 def process_hud_alert(enabled, fingerprint, hud_control):
@@ -51,6 +51,7 @@ def process_hud_alert(enabled, fingerprint, hud_control):
 
 class CarController:
   def __init__(self, dbc_name, CP, VM):
+    self.CP = CP
     self.car_fingerprint = CP.carFingerprint
     self.params = CarControllerParams(CP)
     self.packer = CANPacker(dbc_name)
@@ -84,9 +85,9 @@ class CarController:
     self.prev_active_cam = False
     self.active_cam_timer = 0
     self.last_active_cam_frame = 0
-
+    self.maxAngleFrames = MAX_ANGLE_FRAMES
     self.angle_limit_counter = 0
-
+     
   def update(self, CC, CS, controls):
     actuators = CC.actuators
     hud_control = CC.hudControl
@@ -137,7 +138,10 @@ class CarController:
     self.lkas11_cnt = (self.lkas11_cnt + 1) % 0x10
 
     cut_steer_temp = False
-    
+
+    if self.frame % 100 == 0:
+      self.maxAngleFrames = int(Params().get("MaxAngleFrames", encoding="utf8"))
+      
     # Count up to MAX_ANGLE_FRAMES, at which point we need to cut torque to avoid a steering fault
     if lkas_active and abs(CS.out.steeringAngleDeg) >= MAX_ANGLE:
       self.angle_limit_counter += 1
@@ -145,10 +149,10 @@ class CarController:
       self.angle_limit_counter = 0
 
     # Cut steer actuation bit for two frames and hold torque with induced temporary fault
-    torque_fault = lkas_active and self.angle_limit_counter > MAX_ANGLE_FRAMES
+    torque_fault = lkas_active and self.angle_limit_counter > self.maxAngleFrames
     lat_active = lkas_active and not torque_fault
 
-    if self.angle_limit_counter >= MAX_ANGLE_FRAMES + MAX_ANGLE_CONSECUTIVE_FRAMES:
+    if self.angle_limit_counter >= self.maxAngleFrames + MAX_ANGLE_CONSECUTIVE_FRAMES:
       self.angle_limit_counter = 0
 
     can_sends = []

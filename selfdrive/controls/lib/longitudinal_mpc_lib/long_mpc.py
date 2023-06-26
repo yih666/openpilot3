@@ -376,16 +376,18 @@ class LongitudinalMpc:
   def update_TF(self, carstate, radarstate, v_ego, a_ego):
     cruise_gap = int(clip(carstate.cruiseGap, 1., 4.))
     if cruise_gap == 1:
-      self.t_follow = 0.9
+      self.t_follow = 0.8
     elif cruise_gap == 2:
-      self.t_follow = 1.2
+      x_vel =  [0.0,   3.0,  3.01, 8.3,  8.31, 13.9, 19.7,  25.0,  41.67]
+      y_dist = [1.17,  1.17, 1.26, 1.26, 1.34, 1.34, 1.43,  1.50,  1.55]
+      self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
     elif cruise_gap == 3:
-      x_vel = [0., 60.*CV.KPH_TO_MS, 110.*CV.KPH_TO_MS]
-      y_dist = [1.45, 2.0, 2.2]
+      x_vel = [0.0,   3.0,  3.01, 8.3,  8.31, 13.9, 19.7,  25.0,  41.67]
+      y_dist = [1.3,   1.3,  1.35, 1.35, 1.43, 1.43, 1.6,   1.8,   2.0]
       self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
     elif cruise_gap == 4:
-      x_vel = [0., 30.*CV.KPH_TO_MS, 70.*CV.KPH_TO_MS, 110.*CV.KPH_TO_MS]
-      y_dist = [1.0, 1.1, 1.2, 1.3]
+      x_vel = [0.0,  3.0,   3.01,  8.3,   8.31, 13.9, 13.91, 25.0,  25.01, 41.67]
+      y_dist = [0.90, 0.90,  0.95,  0.95,  1.1,  1.1,  1.2,   1.2,   1.23,  1.25]
       self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
       
     if radarstate.leadOne.status:
