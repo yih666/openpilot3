@@ -58,7 +58,7 @@ T_DIFFS = np.diff(T_IDXS, prepend=[0.])
 MIN_ACCEL = -3.5
 T_FOLLOW = 1.45
 COMFORT_BRAKE = 2.5
-STOP_DISTANCE = 6.5
+STOP_DISTANCE = 6.0
 
 def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW, stop_distance=STOP_DISTANCE, krkeegan=False):
   if not krkeegan:
@@ -66,13 +66,17 @@ def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW, stop_distan
   # KRKeegan this offset rapidly decreases the following distance when the lead pulls
   # away, resulting in an early demand for acceleration.
   v_diff_offset = 0
-  if np.all(v_lead - v_ego > 0):
-    v_diff_offset = ((v_lead - v_ego) * 1.)
-    v_diff_offset = np.clip(v_diff_offset, 0, stop_distance / 2)
-    v_diff_offset = np.maximum(v_diff_offset * ((10 - v_ego)/10), 0)
-  distance = (v_lead**2) / (2 * COMFORT_BRAKE) + v_diff_offset
-  return distance
-
+  v_diff_offset_max = 12
+  speed_to_reach_max_v_diff_offset = 26 # in kp/h
+  speed_to_reach_max_v_diff_offset = speed_to_reach_max_v_diff_offset * CV.KPH_TO_MS
+  delta_speed = v_lead - v_ego
+  if np.all(delta_speed > 0):
+    v_diff_offset = delta_speed * 2
+    v_diff_offset = np.clip(v_diff_offset, 0, v_diff_offset_max)
+  # increase in a linear behavior
+    v_diff_offset = np.maximum(v_diff_offset * ((speed_to_reach_max_v_diff_offset - v_ego)/speed_to_reach_max_v_diff_offset), 0)
+  return (v_lead**2) / (2 * COMFORT_BRAKE) + v_diff_offset
+  
 def get_safe_obstacle_distance(v_ego, t_follow=T_FOLLOW, comfort_brake=COMFORT_BRAKE, stop_distance=STOP_DISTANCE):
   return (v_ego**2) / (2 * comfort_brake) +  t_follow * v_ego + stop_distance
 

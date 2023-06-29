@@ -277,6 +277,7 @@ class CarController:
 
         if CS.has_scc14:
           acc_standstill = stopping if CS.out.vEgo < 2. else False
+          stopping = stopping and CS.out.vEgoRaw < 0.05
           
           min_required_jerk = min(2.5, abs(accel - CS.out.aEgo) * 15)
           lower_jerk = clip(abs(accel - self.accel_last) * 50, min_required_jerk, 3.0)
