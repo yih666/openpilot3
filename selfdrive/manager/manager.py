@@ -109,7 +109,12 @@ def manager_init() -> None:
     ("CruiseMaxVals8", "30"),
     ("CruiseMaxVals9", "25"),
     ("CruiseMaxVals10", "10"),
-	("OpkrUIBrightness", "0"),
+    ("OpkrUIBrightness", "0"),
+    ("LongitudinalActuatorDelayUpperBound", "60"),
+    ("LongitudinalActuatorDelayLowerBound", "20"),
+    ("LongitudinalTuningKpV", "50"),     
+    ("LongitudinalTuningKiV", "0"),
+    ("MixRadarInfo", "1"),
     ("PutPrebuilt", "0"), 
   ]
   if not PC:

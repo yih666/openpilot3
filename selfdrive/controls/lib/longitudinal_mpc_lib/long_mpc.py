@@ -66,17 +66,13 @@ def get_stopped_equivalence_factor(v_lead, v_ego, t_follow=T_FOLLOW, stop_distan
   # KRKeegan this offset rapidly decreases the following distance when the lead pulls
   # away, resulting in an early demand for acceleration.
   v_diff_offset = 0
-  v_diff_offset_max = 12
-  speed_to_reach_max_v_diff_offset = 26 # in kp/h
-  speed_to_reach_max_v_diff_offset = speed_to_reach_max_v_diff_offset * CV.KPH_TO_MS
-  delta_speed = v_lead - v_ego
-  if np.all(delta_speed > 0):
-    v_diff_offset = delta_speed * 2
-    v_diff_offset = np.clip(v_diff_offset, 0, v_diff_offset_max)
-  # increase in a linear behavior
-    v_diff_offset = np.maximum(v_diff_offset * ((speed_to_reach_max_v_diff_offset - v_ego)/speed_to_reach_max_v_diff_offset), 0)
-  return (v_lead**2) / (2 * COMFORT_BRAKE) + v_diff_offset
-  
+  if np.all(v_lead - v_ego > 0):
+    v_diff_offset = ((v_lead - v_ego) * 1.)
+    v_diff_offset = np.clip(v_diff_offset, 0, stop_distance / 2)
+    v_diff_offset = np.maximum(v_diff_offset * ((10 - v_ego)/10), 0)
+  distance = (v_lead**2) / (2 * COMFORT_BRAKE) + v_diff_offset
+  return distance
+
 def get_safe_obstacle_distance(v_ego, t_follow=T_FOLLOW, comfort_brake=COMFORT_BRAKE, stop_distance=STOP_DISTANCE):
   return (v_ego**2) / (2 * comfort_brake) +  t_follow * v_ego + stop_distance
 
@@ -380,18 +376,18 @@ class LongitudinalMpc:
   def update_TF(self, carstate, radarstate, v_ego, a_ego):
     cruise_gap = int(clip(carstate.cruiseGap, 1., 4.))
     if cruise_gap == 1:
-      self.t_follow = 0.8
+      self.t_follow = 1.0
     elif cruise_gap == 2:
-      x_vel =  [0.0,   3.0,  3.01, 8.3,  8.31, 13.9, 19.7,  25.0,  41.67]
-      y_dist = [1.17,  1.17, 1.26, 1.26, 1.34, 1.34, 1.43,  1.50,  1.55]
+      x_vel =  [0,    11,   13,   15,   25,   40]
+      y_dist = [1.5,  1.5,  1.51,  1.5,  1.5,  1.45]
       self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
     elif cruise_gap == 3:
-      x_vel = [0.0,   3.0,  3.01, 8.3,  8.31, 13.9, 19.7,  25.0,  41.67]
-      y_dist = [1.3,   1.3,  1.35, 1.35, 1.43, 1.43, 1.6,   1.8,   2.0]
+      x_vel = [0,    11,   13,   15,   25,   40]
+      y_dist = [1.75, 1.75, 1.77, 1.75, 1.8,  1.8]
       self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
     elif cruise_gap == 4:
-      x_vel = [0.0,  3.0,   3.01,  8.3,   8.31, 13.9, 13.91, 25.0,  25.01, 41.67]
-      y_dist = [0.90, 0.90,  0.95,  0.95,  1.1,  1.1,  1.2,   1.2,   1.23,  1.25]
+      x_vel = [0,    11,   13,   15,   25,   40]
+      y_dist = [0.9, 1.0, 1.1, 1.12, 1.22, 1.22]
       self.t_follow = np.interp(carstate.vEgo, x_vel, y_dist)
       
     if radarstate.leadOne.status:

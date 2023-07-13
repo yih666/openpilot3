@@ -186,10 +186,10 @@ def create_scc14(packer, enabled, e_vgo, standstill, accel, upper_jerk, lower_je
     values["ObjGap"] = objgap
     values["ObjGap2"] = 1 if objgap else 0
 
-    values["JerkUpperLimit"] = min(3.0, upper_jerk)
-    values["JerkLowerLimit"] = max(0.05, lower_jerk)
-    values["ComfortBandUpper"] = 0.0
-    values["ComfortBandLower"] = 0.0
+    values["JerkUpperLimit"] = upper_jerk
+    values["JerkLowerLimit"] = lower_jerk
+    values["ComfortBandUpper"] = 0.9 + accel * 0.2
+    values["ComfortBandLower"] = 0.8 + accel * 0.2
 
   return packer.make_can_msg("SCC14", 0, values)
 

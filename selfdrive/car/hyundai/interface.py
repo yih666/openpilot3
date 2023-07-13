@@ -86,25 +86,7 @@ class CarInterface(CarInterfaceBase):
     ret.steerActuatorDelay = 0.3
     ret.steerLimitTimer = 0.8
     ret.steerRatio = 15.3
-	
-    # longitudinal
-    ret.longitudinalTuning.kpBP = [2.0, 7.0]
-    ret.longitudinalTuning.kpV = [0.4, 0.9]
-
-    ret.longitudinalTuning.kiBP = [2.0, 7.0]
-    ret.longitudinalTuning.kiV = [0.0, 0.15]
-
-    ret.longitudinalActuatorDelayLowerBound = 0.2
-    ret.longitudinalActuatorDelayUpperBound = 0.7
-
-    ret.stoppingControl = True
-    ret.startingState = False # True # startAccel을 적용하는 startingState를 막음.
-    ret.vEgoStarting = 0.3
-    ret.vEgoStopping = 0.3
-    ret.startAccel = 2.0
-    ret.stoppingDecelRate = 0.1 # brake_travel/s while trying to stop
-
-
+	  
     # genesis
     if candidate == CAR.GENESIS:
       ret.mass = 2060. + STD_CARGO_KG
@@ -322,8 +304,23 @@ class CarInterface(CarInterfaceBase):
     ret.steerRatioRear = 0.
     ret.steerControlType = car.CarParams.SteerControlType.torque
 
-    ret.stoppingControl = True
+    # longitudinal
+    #ret.longitudinalTuning.kpBP = [2.0, 7.0]
+    ret.longitudinalTuning.kpV = [0.5]
 
+    #ret.longitudinalTuning.kiBP = [2.0, 7.0]
+    ret.longitudinalTuning.kiV = [0.0]
+
+    ret.stoppingControl = True
+    ret.startingState = False
+    ret.vEgoStarting = 0.3
+    ret.vEgoStopping = 0.3
+    ret.startAccel = 1.0
+    ret.stoppingDecelRate = 0.09
+	  
+    ret.longitudinalActuatorDelayLowerBound = 0.2
+    ret.longitudinalActuatorDelayUpperBound = 0.6
+	  
     ret.enableBsm = 0x58b in fingerprint[0]
     ret.enableAutoHold = 1151 in fingerprint[0]
 

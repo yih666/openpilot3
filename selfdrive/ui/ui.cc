@@ -180,8 +180,10 @@ static void update_state(UIState *s) {
     scene.car_state = sm["carState"].getCarState();
     auto cs_data = sm["carState"].getCarState();
     scene.angleSteers = cs_data.getSteeringAngleDeg();
+    scene.radarDistance = cs_data.getRadarDistance();
     scene.leftblindspot = scene.car_state.getLeftBlindspot();
     scene.rightblindspot = scene.car_state.getRightBlindspot();
+    scene.blinkerstatus = cs_data.getLeftBlinker()? 1 : cs_data.getRightBlinker()? 2 : 0;
   }
   
   if (scene.started && sm.updated("controlsState")) {
@@ -301,13 +303,8 @@ void ui_update_params(UIState *s) {
 void UIState::updateStatus() {
   if (scene.started && sm->updated("controlsState")) {
     auto controls_state = (*sm)["controlsState"].getControlsState();
-    auto alert_status = controls_state.getAlertStatus();
     auto state = controls_state.getState();
-    if (alert_status == cereal::ControlsState::AlertStatus::USER_PROMPT) {
-      status = STATUS_WARNING;
-    } else if (alert_status == cereal::ControlsState::AlertStatus::CRITICAL) {
-      status = STATUS_ALERT;
-    } else if (state == cereal::ControlsState::OpenpilotState::PRE_ENABLED || state == cereal::ControlsState::OpenpilotState::OVERRIDING) {
+    if (state == cereal::ControlsState::OpenpilotState::PRE_ENABLED || state == cereal::ControlsState::OpenpilotState::OVERRIDING) {
       status = STATUS_OVERRIDE;
     } else {
       status = controls_state.getEnabled() ? STATUS_ENGAGED : STATUS_DISENGAGED;
@@ -325,12 +322,13 @@ void UIState::updateStatus() {
     }
     started_prev = scene.started;
     emit offroadTransition(!scene.started);
+    //emit offroadTransition(false);
   }
 }
 
 UIState::UIState(QObject *parent) : QObject(parent) {
   sm = std::make_unique<SubMaster, const std::initializer_list<const char *>>({
-    "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState", "roadCameraState",
+    "modelV2", "controlsState", "lateralPlan", "liveCalibration", "radarState", "deviceState", "roadCameraState",
     "pandaStates", "carParams", "driverMonitoringState", "sensorEvents", "carState", "liveLocationKalman",
     "wideRoadCameraState",
     "gpsLocationExternal", "carControl", "liveParameters", "lateralPlan", "roadLimitSpeed",

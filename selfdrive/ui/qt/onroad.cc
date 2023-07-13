@@ -32,10 +32,6 @@ OnroadWindow::OnroadWindow(QWidget *parent) : QWidget(parent) {
   nvg->hud = hud;
 	
   buttons = new ButtonsWindow(this);
-  QObject::connect(uiState(), &UIState::uiUpdate, buttons, &ButtonsWindow::updateState);
-  QObject::connect(nvg, &NvgWindow::resizeSignal, [=] (int w) {
-    buttons->setFixedWidth(w);
-  });
   stacked_layout->addWidget(buttons);
 
 
@@ -82,16 +78,11 @@ OnroadWindow::OnroadWindow(QWidget *parent) : QWidget(parent) {
 }
 
 void OnroadWindow::updateState(const UIState &s) {
+  buttons->updateState(s);
+	
   QColor bgColor = bg_colors[s.status];
   Alert alert = Alert::get(*(s.sm), s.scene.started_frame);
-  if (s.sm->updated("controlsState") || !alert.equal({})) {
-    if (alert.type == "controlsUnresponsive") {
-      bgColor = bg_colors[STATUS_ALERT];
-    } else if (alert.type == "controlsUnresponsivePermanent") {
-      bgColor = bg_colors[STATUS_DISENGAGED];
-    }
-    alerts->updateAlert(alert, bgColor);
-  }
+  alerts->updateAlert(alert);
 
   if (s.scene.map_on_left) {
     split->setDirection(QBoxLayout::LeftToRight);
@@ -106,6 +97,13 @@ void OnroadWindow::updateState(const UIState &s) {
     bg = bgColor;
     update();
   }
+	
+  UIState *my_s = uiState();
+  if (s.scene.blinkerstatus || my_s->scene.prev_blinkerstatus) {
+    update();
+    my_s->scene.prev_blinkerstatus = s.scene.blinkerstatus;
+    my_s->scene.blinkerframe += my_s->scene.blinkerframe < 255? +20 : -255;
+  }	
 }
 
 void OnroadWindow::mouseReleaseEvent(QMouseEvent* e) {
@@ -207,7 +205,7 @@ void OnroadWindow::offroadTransition(bool offroad) {
   }
 #endif
 
-  alerts->updateAlert({}, bg);
+  alerts->updateAlert({});
 
   // update stream type
   bool wide_cam = Hardware::TICI() && Params().getBool("EnableWideCamera");
@@ -221,18 +219,53 @@ void OnroadWindow::offroadTransition(bool offroad) {
 void OnroadWindow::paintEvent(QPaintEvent *event) {
   QPainter p(this);
   p.fillRect(rect(), QColor(bg.red(), bg.green(), bg.blue(), 255));
+
+  // Begin AleSato Blinker Indicator
+  p.setPen(Qt::NoPen);
+  UIState *s = uiState();
+  p.setBrush(QBrush(QColor(0, 0, 0, 0xff)));
+  if (s->scene.blinkerstatus == 1) {
+    // left rectangle for blinker indicator
+    float rightcorner = width() * 0.75;
+    QRect blackground = QRect(0, height()*0.75, rightcorner, height());
+    p.drawRect(blackground);
+    float bottomsect = rightcorner / (rightcorner + (height()/4)); // time proportion
+    float delta = 1 - (float(s->scene.blinkerframe)/(255*bottomsect));
+    delta = std::clamp(delta, 0.0f, 1.0f);
+    QRect r = QRect(rightcorner*delta, height()-30, rightcorner-(rightcorner*delta), 30);
+    p.setBrush(QBrush(QColor(255, 150, 0, 255)));
+    p.drawRect(r);
+    float delta2 = (float(s->scene.blinkerframe) - float(255 * bottomsect)) / (255 * (1 - bottomsect));
+    delta2 = std::clamp(delta2, 0.0f, 1.0f);
+    r = QRect(0, height() - height()*0.25*delta2, 30, height());
+    p.drawRect(r);
+  } else if (s->scene.blinkerstatus == 2) {
+    // right rectangle for blinker indicator
+    float leftcorner = width() * 0.25;
+    QRect blackground = QRect(leftcorner, height()*0.75, width(), height());
+    p.drawRect(blackground);
+    float bottomsect = (width() - leftcorner) / (width() - leftcorner + (height()/4)); // time proportion
+    float delta = float(s->scene.blinkerframe)/(255*bottomsect);
+    delta = std::clamp(delta, 0.0f, 1.0f);
+    QRect r = QRect(leftcorner, height()-30, (width()-leftcorner)*delta, 30);
+    p.setBrush(QBrush(QColor(255, 150, 0, 150)));
+    p.drawRect(r);
+    float delta2 = (float(s->scene.blinkerframe) - float(255 * bottomsect)) / (255 * (1 - bottomsect));
+    delta2 = std::clamp(delta2, 0.0f, 1.0f);
+    r = QRect(width()-30, height() - height()*0.25*delta2, width(), height());
+    p.drawRect(r);
+  }
+  // End AleSato Blinker Indicator	
 }
 
 // ***** onroad widgets *****
 
 ButtonsWindow::ButtonsWindow(QWidget *parent) : QWidget(parent) {
   QVBoxLayout *main_layout  = new QVBoxLayout(this);
-
   QWidget *btns_wrapper = new QWidget;
   QHBoxLayout *btns_layout  = new QHBoxLayout(btns_wrapper);
   btns_layout->setSpacing(0);
   btns_layout->setContentsMargins(0, 770, 30, 30);
-
   main_layout->addWidget(btns_wrapper, 0, Qt::AlignTop);
 
   // Dynamic lane profile button
@@ -289,10 +322,9 @@ void ButtonsWindow::updateState(const UIState &s) {
 }
 
 // OnroadAlerts
-void OnroadAlerts::updateAlert(const Alert &a, const QColor &color) {
-  if (!alert.equal(a) || color != bg) {
+void OnroadAlerts::updateAlert(const Alert &a) {
+  if (!alert.equal(a)) {
     alert = a;
-    bg = color;
     update();
   }
 }
@@ -301,30 +333,27 @@ void OnroadAlerts::paintEvent(QPaintEvent *event) {
   if (alert.size == cereal::ControlsState::AlertSize::NONE) {
     return;
   }
-  static std::map<cereal::ControlsState::AlertSize, const int> alert_sizes = {
+  static std::map<cereal::ControlsState::AlertSize, const int> alert_heights = {
     {cereal::ControlsState::AlertSize::SMALL, 271},
     {cereal::ControlsState::AlertSize::MID, 420},
     {cereal::ControlsState::AlertSize::FULL, height()},
   };
-  int h = alert_sizes[alert.size];
-  QRect r = QRect(0, height() - h, width(), h);
+  int h = alert_heights[alert.size];
+
+  int margin = 40;
+  int radius = 30;
+  if (alert.size == cereal::ControlsState::AlertSize::FULL) {
+    margin = 0;
+    radius = 0;
+  }
+  QRect r = QRect(0 + margin, height() - h + margin, width() - margin*2, h - margin*2);
 
   QPainter p(this);
 
   // draw background + gradient
   p.setPen(Qt::NoPen);
-  p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-
-  p.setBrush(QBrush(bg));
-  p.drawRect(r);
-
-  QLinearGradient g(0, r.y(), 0, r.bottom());
-  g.setColorAt(0, QColor::fromRgbF(0, 0, 0, 0.05));
-  g.setColorAt(1, QColor::fromRgbF(0, 0, 0, 0.35));
-
-  p.setCompositionMode(QPainter::CompositionMode_DestinationOver);
-  p.setBrush(QBrush(g));
-  p.fillRect(r, g);
+  p.setBrush(QBrush(alert_colors[alert.status]));
+  p.drawRoundedRect(r, radius, radius);	
   p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
   // text
@@ -504,12 +533,13 @@ void NvgWindow::initializeGL() {
   ic_nda = QPixmap("../assets/images/img_nda.png");
   ic_hda = QPixmap("../assets/images/img_hda.png");
   //ic_tire_pressure = QPixmap("../assets/images/img_tire_pressure.png");
-  ic_turn_signal_l = QPixmap("../assets/images/turn_signal_l.png");
-  ic_turn_signal_r = QPixmap("../assets/images/turn_signal_r.png");
   ic_satellite = QPixmap("../assets/images/satellite.png");
   ic_scc2 = QPixmap("../assets/images/img_scc2.png");
   ic_radar = QPixmap("../assets/images/radar.png");
   ic_radar_vision = QPixmap("../assets/images/radar_vision.png");
+  ic_lane_change_left_img = QPixmap("../assets/images/lane_change_left.png");
+  ic_lane_change_right_img = QPixmap("../assets/images/lane_change_right.png");
+	
 }
 
 void NvgWindow::updateFrameMat(int w, int h) {
@@ -644,16 +674,35 @@ void NvgWindow::drawLead(QPainter &painter, const cereal::RadarState::LeadData::
   float g_xo = sz / 5;
   float g_yo = sz / 10;
 
+  UIState *s = uiState();
 
-  float homebase_h = 12;
-  QPointF glow[] = {{x + (sz * 1.35) + g_xo, y + sz + g_yo + homebase_h},{x + (sz * 1.35) + g_xo, y + sz + g_yo}, {x, y - g_yo}, {x - (sz * 1.35) - g_xo, y + sz + g_yo},{x - (sz * 1.35) - g_xo, y + sz + g_yo + homebase_h}, {x, y + sz + homebase_h + g_yo + 10}};
-  painter.setBrush(QColor(218, 202, 37, 210));
-  painter.drawPolygon(glow, std::size(glow));
+  if (s->scene.radarDistance < 149) {
+    float homebase_h = 12;
+    QPointF glow[] = {{x + (sz * 1.35) + g_xo, y + sz + g_yo + homebase_h},{x + (sz * 1.35) + g_xo, y + sz + g_yo}, {x, y - g_yo}, {x - (sz * 1.35) - g_xo, y + sz + g_yo},{x - (sz * 1.35) - g_xo, y + sz + g_yo + homebase_h}, {x, y + sz + homebase_h + g_yo + 10}};
+    painter.setBrush(QColor(218, 202, 37, 210));
+    painter.drawPolygon(glow, std::size(glow));
 
-  // chevron
-  QPointF chevron[] = {{x + (sz * 1.25), y + sz + homebase_h},{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz},{x - (sz * 1.25), y + sz + homebase_h}, {x, y + sz + homebase_h - 7}};
-  painter.setBrush(redColor(fillAlpha));
-  painter.drawPolygon(chevron, std::size(chevron));
+    // chevron
+    QPointF chevron[] = {{x + (sz * 1.25), y + sz + homebase_h},{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz},{x - (sz * 1.25), y + sz + homebase_h}, {x, y + sz + homebase_h - 7}};
+    painter.setBrush(redColor(fillAlpha));
+    painter.drawPolygon(chevron, std::size(chevron));
+    configFont(painter, FONT_OPEN_SANS, 35, "SemiBold");  
+    painter.setPen(QColor(0x0, 0x0, 0xff));
+    painter.drawText(QRect(x - (sz * 1.25), y, 2 * (sz * 1.25), sz * 1.25), Qt::AlignCenter, QString("R"));
+  } else {
+    float homebase_h = 12;  
+    QPointF glow[] = {{x + (sz * 1.35) + g_xo, y + sz + g_yo + homebase_h},{x + (sz * 1.35) + g_xo, y + sz + g_yo}, {x, y - g_yo}, {x - (sz * 1.35) - g_xo, y + sz + g_yo},{x - (sz * 1.35) - g_xo, y + sz + g_yo + homebase_h}, {x, y + sz + homebase_h + g_yo + 10}};
+    painter.setBrush(QColor(0, 255, 0, 255));
+    painter.drawPolygon(glow, std::size(glow));
+
+    // chevron
+    QPointF chevron[] = {{x + (sz * 1.25), y + sz + homebase_h},{x + (sz * 1.25), y + sz}, {x, y}, {x - (sz * 1.25), y + sz},{x - (sz * 1.25), y + sz + homebase_h}, {x, y + sz + homebase_h - 7}};
+    painter.setBrush(greenColor(fillAlpha));
+    painter.drawPolygon(chevron, std::size(chevron));
+    configFont(painter, FONT_OPEN_SANS, 35, "SemiBold");  
+    painter.setPen(QColor(0x0, 0x0, 0x0));
+    painter.drawText(QRect(x - (sz * 1.25), y, 2 * (sz * 1.25), sz * 1.25), Qt::AlignCenter, QString("V"));
+  }	
   
   if(num == 0){
     QString dist = QString::number(d_rel,'f',0) + "m";
@@ -968,9 +1017,10 @@ void NvgWindow::drawCommunity(QPainter &p) {
 	
   drawMaxSpeed(p);
   drawSpeed(p);
-  drawTurnSignals(p);
   drawGpsStatus(p);
   drawBrake(p);
+  drawMisc(p);
+  drawLaneChangeIndicator(p, uiState());	
 	
   if(s->show_steer)
     drawSteer(p);	
@@ -993,6 +1043,7 @@ void NvgWindow::drawCommunity(QPainter &p) {
   const auto car_params = sm["carParams"].getCarParams();
   const auto live_params = sm["liveParameters"].getLiveParameters();
   const auto device_state = sm["deviceState"].getDeviceState();
+  float memory_usagepercent = sm["deviceState"].getDeviceState().getMemoryUsagePercent();	
   float distance_traveled = sm["controlsState"].getControlsState().getDistanceTraveled() / 1000;
   	
   int lateralControlState = controls_state.getLateralControlSelect();
@@ -1011,14 +1062,15 @@ void NvgWindow::drawCommunity(QPainter &p) {
   int scc_bus = car_params.getSccBus();
 
   QString infoText;
-  infoText.sprintf("          %s                  SR %.2f                   CPU온도 %.0f°C                   주행거리  %.1f km                    SCC %d",
+  infoText.sprintf("         %s             SR %.2f             CPU온도 %.0f°C             CPU사용 %d%%             주행거리  %.1f km             SCC %d",
 		      lateral_state[lateralControlState],
                       //live_params.getAngleOffsetDeg(),
                       //live_params.getAngleOffsetAverageDeg(),
                       controls_state.getSteerRatio(),
                       //controls_state.getSteerActuatorDelay(),
 		      cpuTemp,
-		      controls_state.getDistanceTraveled() /1000,
+	              device_state.getMemoryUsagePercent(),
+		      controls_state.getDistanceTraveled() / 1000,
                       scc_bus
                       );
 
@@ -1461,7 +1513,33 @@ void NvgWindow::drawMaxSpeed(QPainter &p) {
       text_rect.moveTop(b_rect.top() + 3);
       p.drawText(text_rect, Qt::AlignCenter, str);
     }
+
+    {
+      configFont(p, "Inter", 10, "Bold");
+
+      QRect text_rect = getRect(p, Qt::AlignCenter, str);
+      QRect b_rect(board_rect.x(), board_rect.y(), board_rect.width(), board_rect.height()/2);
+      text_rect.moveCenter({b_rect.center().x(), 0});
+      text_rect.moveTop(b_rect.top() + 20);
+      p.drawText(text_rect, Qt::AlignCenter, str);
+    } 
   }
+
+  p.restore();
+}
+
+void NvgWindow::drawMisc(QPainter &p) {
+  p.save();
+  UIState *s = uiState();
+  const SubMaster &sm = *(s->sm);
+
+  const auto road_limit_speed = sm["roadLimitSpeed"].getRoadLimitSpeed();
+  QString currentRoadName = QString::fromStdString(road_limit_speed.getCurrentRoadName().cStr());
+
+  QColor color = QColor(255, 255, 255, 230);
+
+  configFont(p, "Inter", 70, "Regular");
+  drawText(p, (width()-(bdr_s*2))/4 + bdr_s + 20, 140, currentRoadName, 200);
 
   p.restore();
 }
@@ -1492,84 +1570,6 @@ void NvgWindow::drawSteer(QPainter &p) {
 	
   str.sprintf("%.0f°", desire_angle);
   drawTextWithColor(p, rc.center().x(), rc.center().y() + 50, str, textColor1);
-}
-
-void NvgWindow::drawTurnSignals(QPainter &p) {
-  static int blink_index = 0;
-  static int blink_wait = 0;
-  static double prev_ts = 0.0;
-
-  if(blink_wait > 0) {
-    blink_wait--;
-    blink_index = 0;
-  }
-  else {
-    const SubMaster &sm = *(uiState()->sm);
-    auto car_state = sm["carState"].getCarState();
-    bool left_on = car_state.getLeftBlinker();
-    bool right_on = car_state.getRightBlinker();
-
-    const float img_alpha = 0.8f;
-    const int fb_w = width() / 2 - 200;
-    const int center_x = width() / 2;
-    const int w = fb_w / 25;
-    const int h = 170;
-    const int gap = fb_w / 25;
-    const int margin = (int)(fb_w / 3.8f);
-    const int base_y = (height() - h) / 2 - 360;
-    const int draw_count = 7;
-
-    int x = center_x;
-    int y = base_y;
-
-    if(left_on) {
-      for(int i = 0; i < draw_count; i++) {
-        float alpha = img_alpha;
-        int d = std::abs(blink_index - i);
-        if(d > 0)
-          alpha /= d*2;
-
-        p.setOpacity(alpha);
-        float factor = (float)draw_count / (i + draw_count);
-        p.drawPixmap(x - w - margin, y + (h-h*factor)/2, w*factor, h*factor, ic_turn_signal_l);
-        x -= gap + w;
-      }
-    }
-
-    x = center_x;
-    if(right_on) {
-      for(int i = 0; i < draw_count; i++) {
-        float alpha = img_alpha;
-        int d = std::abs(blink_index - i);
-        if(d > 0)
-          alpha /= d*2;
-
-        float factor = (float)draw_count / (i + draw_count);
-        p.setOpacity(alpha);
-        p.drawPixmap(x + margin, y + (h-h*factor)/2, w*factor, h*factor, ic_turn_signal_r);
-        x += gap + w;
-      }
-    }
-
-    if(left_on || right_on) {
-
-      double now = millis_since_boot();
-      if(now - prev_ts > 900/UI_FREQ) {
-        prev_ts = now;
-        blink_index++;
-      }
-
-      if(blink_index >= draw_count) {
-        blink_index = draw_count - 1;
-        blink_wait = UI_FREQ/4;
-      }
-    }
-    else {
-      blink_index = 0;
-    }
-  }
-
-  p.setOpacity(1.);
 }
 
 void NvgWindow::drawGpsStatus(QPainter &p) {
@@ -1751,5 +1751,41 @@ void NvgWindow::drawEngRpm(QPainter &p) {
    drawTextWithColor(p, x, y, rpm, textColor2);
   } else if (eng_rpm > 3000) {
    drawTextWithColor(p, x, y, rpm, textColor2);
+  }
+}
+
+void NvgWindow::drawLaneChangeIndicator(QPainter &painter, const UIState *s) {
+  typedef cereal::LateralPlan::LaneChangeDirection Direction;
+  typedef cereal::LateralPlan::LaneChangeState State;
+
+  auto draw_indicator_lambda = [this](QPainter &painter, Direction direction, QColor color) {
+    QPixmap img = direction == Direction::LEFT ? ic_lane_change_left_img : ic_lane_change_right_img;
+    QRect img_rc{0, (rect().height() - img.height()) / 2, img.width() + 20, img.height() + 20};
+    //QRect ellipse_rc = img_rc.adjusted(-img_rc.width(), -img_rc.height() / 2, 20, img_rc.height() / 2);
+    if (direction == Direction::RIGHT) {
+      img_rc.moveRight(rect().right() -400);
+      //ellipse_rc.moveRight(rect().right() + img_rc.width() - 400);
+    } else if (direction == Direction::LEFT) {
+      img_rc.moveLeft(rect().left() + 400);
+      //ellipse_rc.moveLeft(rect().left() + img_rc.width() + 400);
+    }
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    //painter.drawEllipse(ellipse_rc);
+    painter.drawPixmap(img_rc, img);
+  };
+
+  auto lateralPlan = (*(s->sm))["lateralPlan"].getLateralPlan();
+  auto laneChangeState = lateralPlan.getLaneChangeState();
+  auto direction = lateralPlan.getLaneChangeDirection();
+
+  if (laneChangeState == State::PRE_LANE_CHANGE) {
+    auto carState = (*(s->sm))["carState"].getCarState();
+    bool blocked = (direction == Direction::LEFT && carState.getLeftBlindspot()) ||
+                   (direction == Direction::RIGHT && carState.getRightBlindspot());
+    draw_indicator_lambda(painter, direction, blocked ? redColor(200) : blackColor(200));
+  } else if (laneChangeState == State::LANE_CHANGE_STARTING ||
+             laneChangeState == State::LANE_CHANGE_FINISHING) {
+    draw_indicator_lambda(painter, direction, bg_colors[s->status]);
   }
 }

@@ -20,15 +20,13 @@ class ButtonsWindow : public QWidget {
 
 public:
   ButtonsWindow(QWidget* parent = 0);
+  void updateState(const UIState &s);
 
 private:
   QPushButton *dlpBtn;
 
   //int dlpStatus = -1;
   const QStringList dlpBtnColors = {"#87ceeb", "#00ff16", "#808080"};
-
-public slots:
-  void updateState(const UIState &s);
 };
 
 class OnroadHud : public QWidget {
@@ -75,7 +73,7 @@ class OnroadAlerts : public QWidget {
 
 public:
   OnroadAlerts(QWidget *parent = 0) : QWidget(parent) {};
-  void updateAlert(const Alert &a, const QColor &color);
+  void updateAlert(const Alert &a);
 
 protected:
   void paintEvent(QPaintEvent*) override;
@@ -128,22 +126,22 @@ protected:
   QPixmap ic_nda;
   QPixmap ic_hda;
   QPixmap ic_tire_pressure;
-  QPixmap ic_turn_signal_l;
-  QPixmap ic_turn_signal_r;
   QPixmap ic_satellite;
   QPixmap ic_scc2;
   QPixmap ic_radar;
   QPixmap ic_radar_vision;
+  QPixmap ic_lane_change_left_img;
+  QPixmap ic_lane_change_right_img;
   
   QMap<QString, QPixmap> ic_oil_com;
   
   void drawText(QPainter &p, int x, int y, const QString &text, int alpha = 255);
   void drawTextWithColor(QPainter &p, int x, int y, const QString &text, QColor& color);
   void drawText2(QPainter &p, int x, int y, int flags, const QString &text, const QColor& color);
+  void drawLaneChangeIndicator(QPainter &p, const UIState *s);
   void drawMaxSpeed(QPainter &p);
   void drawSpeed(QPainter &p);
   void drawBottomIcons(QPainter &p);
-  void drawTurnSignals(QPainter &p);
   void drawDebugText(QPainter &p);
   void drawCgear(QPainter &p);//기어
   void drawTpms(QPainter &p);
@@ -151,6 +149,7 @@ protected:
   void drawCommunity(QPainter &p);
   void drawGpsStatus(QPainter &p);
   void drawSteer(QPainter &p);
+  void drawMisc(QPainter &p);
   void drawEngRpm(QPainter &p);
   
   const int radius = 192;

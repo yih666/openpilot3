@@ -225,6 +225,7 @@ struct CarState {
   currentGear @47 :Float32;
   
   engRpm @48 :Float32;
+  radarDistance @49 :Float32;
 
   struct Tpms {
     fl @0 :Float32;
@@ -367,6 +368,7 @@ struct CarControl {
     speed @6: Float32; # m/s
     accel @4: Float32; # m/s^2
     longControlState @5: LongControlState;
+    jerk @7: Float32; # apilot
 
     enum LongControlState @0xe40f3a917d908282{
       off @0;

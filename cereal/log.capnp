@@ -1843,6 +1843,7 @@ struct RoadLimitSpeed {
     sectionLeftTime @9 :Int16;
     sectionAdjustSpeed @10 :Bool;
     camSpeedFactor @11 :Float32;
+    currentRoadName @12 :Text;
 }
 
 struct Event {
