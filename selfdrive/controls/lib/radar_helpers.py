@@ -1,5 +1,6 @@
 from common.numpy_fast import mean
 from common.kalman.simple_kalman import KF1D
+from common.filter_simple import StreamingMovingAverage
 
 
 # the longer lead decels, the more likely it will keep decelerating
@@ -60,6 +61,7 @@ class Track():
 class Cluster():
   def __init__(self):
     self.tracks = set()
+    self.aLeadKFilter = StreamingMovingAverage(5)
 
   def add(self, t):
     # add the first track
@@ -131,6 +133,26 @@ class Cluster():
       "aLeadTau": float(self.aLeadTau)
     }
 
+  def get_RadarState2(self, model_prob, lead_msg, mixRadarInfo):
+    useVisionMix = False
+    if mixRadarInfo>0 and float(lead_msg.prob) > 0.5 and abs(float(self.aLeadK)) < abs(float(lead_msg.a[0])):
+      useVisionMix = True
+
+    aLeadK = self.aLeadKFilter.process(float(lead_msg.a[0]) if useVisionMix else float(self.aLeadK))
+    return {
+      "dRel": float(self.dRel),
+      "yRel": float(self.yRel),
+      "vRel": float(self.vRel),
+      "vLead": float(self.vLead),
+      "vLeadK": float(self.vLeadK),
+      "aLeadK": aLeadK,
+      "status": True,
+      "fcw": self.is_potential_fcw(model_prob),
+      "modelProb": model_prob,
+      "radar": True,
+      "aLeadTau": 0.3 if useVisionMix else float(self.aLeadTau)
+    }
+
   def get_RadarState_from_vision(self, lead_msg, v_ego, model_v_ego):
     lead_v_rel_pred = lead_msg.v[0] - model_v_ego
     return {
@@ -139,7 +161,7 @@ class Cluster():
       "vRel": float(lead_v_rel_pred),
       "vLead": float(v_ego + lead_v_rel_pred),
       "vLeadK": float(v_ego + lead_v_rel_pred),
-      "aLeadK": 0.0,
+      "aLeadK": float(lead_msg.a[0]),
       "aLeadTau": 0.3,
       "fcw": False,
       "modelProb": float(lead_msg.prob),
