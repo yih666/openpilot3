@@ -6,6 +6,8 @@ import sysconfig
 import platform
 import numpy as np
 
+import SCons.Errors
+
 TICI = os.path.isfile('/TICI')
 Decider('MD5-timestamp')
 
@@ -325,8 +327,13 @@ else:
     qt_libs += ["GLESv2", "wayland-client"]
   elif arch != "Darwin":
     qt_libs += ["GL"]
+qt_env['QT3DIR'] = qt_env['QTDIR']
 
-qt_env.Tool('qt')
+try:
+  qt_env.Tool('qt3')
+except SCons.Errors.UserError:
+  qt_env.Tool('qt')
+
 qt_env['CPPPATH'] += qt_dirs + ["#selfdrive/ui/qt/"]
 qt_flags = [
   "-D_REENTRANT",
