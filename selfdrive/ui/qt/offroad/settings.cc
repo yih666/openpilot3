@@ -236,7 +236,7 @@ void DevicePanel::updateCalibDescription() {
       AlignedBuffer aligned_buf;
       capnp::FlatArrayMessageReader cmsg(aligned_buf.align(calib_bytes.data(), calib_bytes.size()));
       auto calib = cmsg.getRoot<cereal::Event>().getLiveCalibration();
-      if (calib.getCalStatus() != 0) {
+      if (calib.getCalStatus() != cereal::LiveCalibrationData::Status::UNCALIBRATED) {
         double pitch = calib.getRpyCalib()[1] * (180 / M_PI);
         double yaw = calib.getRpyCalib()[2] * (180 / M_PI);
         desc += QString(" 장치 장착상태는 %1° %2 그리고 %3° %4.")
@@ -826,15 +826,15 @@ TUNINGPanel::TUNINGPanel(QWidget* parent) : QWidget(parent) {
     toggleLayout->addWidget(new CValueControl("LongitudinalActuatorDelayLowerBound", "_LADLowerBound(20)", "", "../assets/offroad/icon_road.png", 0, 100, 10));
     toggleLayout->addWidget(new CValueControl("LongitudinalActuatorDelayUpperBound", "_LADUpperBound(60)", "", "../assets/offroad/icon_road.png", 0, 100, 10));
     toggleLayout->addWidget(horizontal_line());
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals1", "ACCEL:0~10km/h(180)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 250, 5));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals2", "ACCEL:10~20km/h(175)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 250, 5));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals3", "ACCEL:20~30km/h(140)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 200, 5));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals1", "ACCEL:0~10km/h(145)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 250, 5));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals2", "ACCEL:10~20km/h(140)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 250, 5));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals3", "ACCEL:20~30km/h(115)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 200, 5));
     toggleLayout->addWidget(new CValueControl("CruiseMaxVals4", "ACCEL:30~40km/h(100)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 150, 5));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals5", "ACCEL:40~50km/h(50)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 100, 5));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals6", "ACCEL:50~70km/h(45)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 70, 1));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals7", "ACCEL:70~90km/h(35)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 60, 1));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals8", "ACCEL:90~110km/h(30)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 50, 1));
-    toggleLayout->addWidget(new CValueControl("CruiseMaxVals9", "ACCEL:110~130km/h(25)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 40, 1));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals5", "ACCEL:40~50km/h(60)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 100, 5));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals6", "ACCEL:50~70km/h(39)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 70, 1));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals7", "ACCEL:70~90km/h(27)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 60, 1));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals8", "ACCEL:90~110km/h(25)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 50, 1));
+    toggleLayout->addWidget(new CValueControl("CruiseMaxVals9", "ACCEL:110~130km/h(22)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 40, 1));
     toggleLayout->addWidget(new CValueControl("CruiseMaxVals10", "ACCEL:130km/h이상(10)", "속도별 가속도를 지정합니다.(x0.01m/s^2)", "../assets/offroad/icon_road.png", 1, 30, 1));
     toggleLayout->addWidget(horizontal_line());
     toggleLayout->addWidget(new CValueControl("AutoNaviSpeedCtrlStart", "과속카메라감속 시작 시간(22초)", "감속시작시점. 값이 크면 감속을 카메라에서 멀리 시작", "../assets/offroad/icon_road.png", 10, 50, 1));
