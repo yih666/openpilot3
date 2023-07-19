@@ -277,16 +277,16 @@ class CarController:
 
         if CS.has_scc14:
           acc_standstill = stopping if CS.out.vEgo < 2. else False
-          stopping = stopping and CS.out.vEgoRaw < 0.05
-          startingJerk = 1
-          if actuators.jerk <= 0:
-            jerk_l = max(1, - actuators.jerk * 2)
-            jerk_u = 0
-          else:
-            jerk = self.jerkUpperLowerLimit if actuators.longControlState in [LongCtrlState.pid,LongCtrlState.stopping] else startingJerk  #comma: jerk=1
-            jerk_u = jerk #actuators.jerk *3
-            jerk_l = jerk #0 if actuators.jerk > 0.5 else 1.0
+          #stopping = stopping and CS.out.vEgoRaw < 0.05
           
+          required_jerk = min(3, abs(accel - CS.out.aEgo) * 50)
+          lower_jerk = required_jerk
+          upper_jerk = required_jerk
+
+          if CS.out.aEgo < accel:
+            lower_jerk = 0
+          else:
+            upper_jerk = 0
 
           lead = self.scc_smoother.get_lead(controls.sm)
 
@@ -297,7 +297,7 @@ class CarController:
             obj_gap = 0
 
           can_sends.append(
-            create_scc14(self.packer, CC.enabled, CS.out.vEgo, acc_standstill, apply_accel, jerk_u, jerk_l, stopping, CC.cruiseControl.override,
+            create_scc14(self.packer, CC.enabled, CS.out.vEgo, acc_standstill, apply_accel, upper_jerk, lower_jerk, stopping, CC.cruiseControl.override,
                          obj_gap, CS.scc14))
           self.apply_accel_last = apply_accel
     else:

@@ -236,8 +236,9 @@ def below_steer_speed_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: 
 
 
 def calibration_incomplete_alert(CP: car.CarParams, sm: messaging.SubMaster, metric: bool, soft_disable_time: int) -> Alert:
-  return Alert(
-    "캘리브레이션 진행중...: %d%%" % sm['liveCalibration'].calPerc,
+  first_word = 'Recalibration' if sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.recalibrating else 'Calibration'
+  return Aler(
+    f"{first_word} in Progress: {sm['liveCalibration'].calPerc:.0f}%",
     f"주행속도 {get_display_speed(MIN_SPEED_FILTER, metric)} 이상 주행!",
     AlertStatus.normal, AlertSize.mid,
     Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2)
@@ -670,10 +671,16 @@ EVENTS: Dict[int, Dict[str, Union[Alert, AlertCallbackType]]] = {
 
   EventName.calibrationIncomplete: {
     ET.PERMANENT: calibration_incomplete_alert,
-    ET.SOFT_DISABLE: soft_disable_alert("캘리브레이션 진행중..."),
+    ET.SOFT_DISABLE: soft_disable_alert("캘리브레이션 유효하지않음"),
     ET.NO_ENTRY: NoEntryAlert("캘리브레이션 진행중..."),
   },
 
+  EventName.calibrationRecalibrating: {
+    ET.PERMANENT: calibration_incomplete_alert,
+    ET.SOFT_DISABLE: soft_disable_alert("마운트위치 오류 확인: 재캘리브레이션 진행중..."),
+    ET.NO_ENTRY: NoEntryAlert("마운트위치 오류 확인: 재캘리브레이션 진행중..."),
+  },
+  
   EventName.doorOpen: {
     ET.SOFT_DISABLE: user_soft_disable_alert("Door Open"),
     ET.NO_ENTRY: NoEntryAlert("Door Open"),

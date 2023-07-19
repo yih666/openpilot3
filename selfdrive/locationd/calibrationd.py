@@ -40,13 +40,6 @@ PITCH_LIMITS = np.array([-0.09074112085129739, 0.14907572052989657])
 YAW_LIMITS = np.array([-0.06912048084718224, 0.06912048084718235])
 DEBUG = os.getenv("DEBUG") is not None
 
-
-class Calibration:
-  UNCALIBRATED = 0
-  CALIBRATED = 1
-  INVALID = 2
-
-
 def is_calibration_valid(rpy: np.ndarray) -> bool:
   return (PITCH_LIMITS[0] < rpy[1] < PITCH_LIMITS[1]) and (YAW_LIMITS[0] < rpy[2] < YAW_LIMITS[1])
 
@@ -71,6 +64,7 @@ class Calibrator:
     self.wide_camera = TICI and params.get_bool('EnableWideCamera')
     rpy_init = RPY_INIT
     valid_blocks = 0
+    self.cal_status = log.LiveCalibrationData.Status.uncalibrated
 
     if param_put and calibration_params:
       try:
@@ -125,15 +119,18 @@ class Calibrator:
       self.calib_spread = np.zeros(3)
 
     if self.valid_blocks < INPUTS_NEEDED:
-      self.cal_status = Calibration.UNCALIBRATED
+      if self.cal_status == log.LiveCalibrationData.Status.recalibrating:
+        self.cal_status = log.LiveCalibrationData.Status.recalibrating
+      else:
+        self.cal_status = log.LiveCalibrationData.Status.uncalibrated
     elif is_calibration_valid(self.rpy):
-      self.cal_status = Calibration.CALIBRATED
+      self.cal_status = log.LiveCalibrationData.Status.calibrated
     else:
-      self.cal_status = Calibration.INVALID
+      self.cal_status = log.LiveCalibrationData.Status.invalid
 
     # If spread is too high, assume mounting was changed and reset to last block.
     # Make the transition smooth. Abrupt transitions are not good for feedback loop through supercombo model.
-    if max(self.calib_spread) > MAX_ALLOWED_SPREAD and self.cal_status == Calibration.CALIBRATED:
+    if max(self.calib_spread) > MAX_ALLOWED_SPREAD and self.cal_status == log.LiveCalibrationData.Status.calibrated:
       self.reset(self.rpys[self.block_idx - 1], valid_blocks=INPUTS_NEEDED, smooth_from=self.rpy)
 
     write_this_cycle = (self.idx == 0) and (self.block_idx % (INPUTS_WANTED//5) == 5)
@@ -196,7 +193,7 @@ class Calibrator:
     if self.CP.notCar:
       extrinsic_matrix = get_view_frame_from_road_frame(0, 0, 0, model_height)
       liveCalibration.validBlocks = INPUTS_NEEDED
-      liveCalibration.calStatus = Calibration.CALIBRATED
+      liveCalibration.calStatus = log.LiveCalibrationData.Status.calibrated
       liveCalibration.calPerc = 100.
       liveCalibration.extrinsicMatrix = extrinsic_matrix.flatten().tolist()
       liveCalibration.rpyCalib = [0, 0, 0]

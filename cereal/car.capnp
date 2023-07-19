@@ -41,6 +41,7 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     overheat @19;
     calibrationIncomplete @20;
     calibrationInvalid @21;
+    calibrationRecalibrating @122;
     controlsMismatch @22;
     pcmEnable @23;
     pcmDisable @24;
@@ -138,7 +139,6 @@ struct CarEvent @0x9b1657f34caf3ad3 {
     autoLaneChange @113;
     slowingDownSpeed @114;
     slowingDownSpeedSound @115;
-    mdpserr @122;
     
     speedLimitActive @116;
     speedLimitValueChange @117;
@@ -368,7 +368,6 @@ struct CarControl {
     speed @6: Float32; # m/s
     accel @4: Float32; # m/s^2
     longControlState @5: LongControlState;
-    jerk @7: Float32; # apilot
 
     enum LongControlState @0xe40f3a917d908282{
       off @0;

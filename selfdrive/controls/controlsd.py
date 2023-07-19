@@ -26,7 +26,6 @@ from selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from selfdrive.controls.lib.events import Events, ET
 from selfdrive.controls.lib.alertmanager import AlertManager, set_offroad_alert
 from selfdrive.controls.lib.vehicle_model import VehicleModel
-from selfdrive.locationd.calibrationd import Calibration
 from selfdrive.hardware import HARDWARE, TICI, EON
 from selfdrive.manager.process_config import managed_processes
 from selfdrive.car.hyundai.scc_smoother import SccSmoother
@@ -283,9 +282,11 @@ class Controls:
 
     # Handle calibration status
     cal_status = self.sm['liveCalibration'].calStatus
-    if cal_status != Calibration.CALIBRATED:
-      if cal_status == Calibration.UNCALIBRATED:
+    if cal_status != log.LiveCalibrationData.Status.calibrated:
+      if cal_status == log.LiveCalibrationData.Status.uncalibrated:
         self.events.add(EventName.calibrationIncomplete)
+      elif cal_status == log.LiveCalibrationData.Status.recalibrating:
+        self.events.add(EventName.calibrationRecalibrating) 
       else:
         self.events.add(EventName.calibrationInvalid)
 
@@ -611,7 +612,6 @@ class Controls:
 
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
-    actuators.jerk = 0.0
 
     if CS.leftBlinker or CS.rightBlinker:
       self.last_blinker_frame = self.sm.frame
@@ -630,7 +630,7 @@ class Controls:
       # accel PID loop
       pid_accel_limits = self.CI.get_pid_accel_limits(self.CP, CS.vEgo, self.v_cruise_kph * CV.KPH_TO_MS)
       t_since_plan = (self.sm.frame - self.sm.rcv_frame['longitudinalPlan']) * DT_CTRL
-      actuators.accel, actuators.jerk = self.LoC.update(CC.longActive and CS.cruiseState.enabledAcc, CS, long_plan, pid_accel_limits, t_since_plan)
+      actuators.accel = self.LoC.update(CC.longActive and CS.cruiseState.enabledAcc, CS, long_plan, pid_accel_limits, t_since_plan)
 
       # Steering PID loop and lateral MPC
       self.desired_curvature, self.desired_curvature_rate = get_lag_adjusted_curvature(self.CP, CS.vEgo,
@@ -729,7 +729,7 @@ class Controls:
 
     recent_blinker = (self.sm.frame - self.last_blinker_frame) * DT_CTRL < 5.0  # 5s blinker cooldown
     ldw_allowed = self.is_ldw_enabled and CS.vEgo > LDW_MIN_SPEED and not recent_blinker \
-                    and not CC.latActive and self.sm['liveCalibration'].calStatus == Calibration.CALIBRATED
+                    and not CC.latActive and self.sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
 
     model_v2 = self.sm['modelV2']
     desire_prediction = model_v2.meta.desirePrediction
