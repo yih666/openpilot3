@@ -1042,8 +1042,7 @@ void NvgWindow::drawCommunity(QPainter &p) {
   const auto controls_state = sm["controlsState"].getControlsState();
   const auto car_params = sm["carParams"].getCarParams();
   const auto live_params = sm["liveParameters"].getLiveParameters();
-  const auto device_state = sm["deviceState"].getDeviceState();
-  float memory_usagepercent = sm["deviceState"].getDeviceState().getMemoryUsagePercent();	
+  const auto device_state = sm["deviceState"].getDeviceState();	
   float distance_traveled = sm["controlsState"].getControlsState().getDistanceTraveled() / 1000;
   	
   int lateralControlState = controls_state.getLateralControlSelect();
@@ -1058,18 +1057,21 @@ void NvgWindow::drawCommunity(QPainter &p) {
       cpuTemp /= cpuList.size();
   }
 
+  auto cpu_loads = device_state.getCpuUsagePercent();
+  int cpu_usage = std::accumulate(cpu_loads.begin(), cpu_loads.end(), 0) / cpu_loads.size();
+	
   //int mdps_bus = car_params.getMdpsBus();
   int scc_bus = car_params.getSccBus();
 
   QString infoText;
-  infoText.sprintf("         %s             SR %.2f             CPU온도 %.0f°C             CPU사용 %d%%             주행거리  %.1f km             SCC %d",
+  infoText.sprintf("         %s             SR %.2f             CPU온도 %.0f°C             CPU부하 %d%%             주행거리  %.1f km             SCC %d",
 		      lateral_state[lateralControlState],
                       //live_params.getAngleOffsetDeg(),
                       //live_params.getAngleOffsetAverageDeg(),
                       controls_state.getSteerRatio(),
                       //controls_state.getSteerActuatorDelay(),
 		      cpuTemp,
-	              device_state.getMemoryUsagePercent(),
+	              cpu_usage,
 		      controls_state.getDistanceTraveled() / 1000,
                       scc_bus
                       );
